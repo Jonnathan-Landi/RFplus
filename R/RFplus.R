@@ -1,32 +1,60 @@
-#' RFplus
+#' RFplus: Bias correction model using Random Forest for satellite-derived environmental data.
 #'
-#' Descripción detallada de lo que hace la función. Explica cómo funciona,
-#' qué parámetros acepta y qué resultados devuelve. Si es necesario, también
-#' puedes poner ejemplos de cómo usarla.
+#' This function applies a Random Forest-based bias correction method to satellite-derived environmental data, such as precipitation, temperature, and other relevant meteorological or environmental variables.
+#' The model corrects biases in these satellite products by incorporating in-situ measurements and environmental covariates, including the Digital Elevation Model (DEM).
 #'
-#' @param x Descripción del parámetro `x`. Puedes incluir el tipo de dato y lo
-#' que representa en la función.
-#' @return Qué valor devuelve la función y qué significa.
-#' @examples
-#' # Ejemplo de cómo usar la función:
-#' mi_funcion(3)
-#' mi_funcion(4)
+#' @param Covariates A list of covariates used as independent variables.
+#'                   The selected covariates should be provided as a list of \code{SpatRaster} objects.
+#'                   Each covariate must be stored in a separate object within the list.
+#'                   Additionally, make sure to include the DEM (Digital Elevation Model).
+#' @param BD.Insitu A \code{data.table} file containing in-situ measurements.
+#'                  It must include columns such as \code{Date}, and the observed variable(s).
+#'                  The \code{Date} column should contain the measurement dates,
+#'                  and the column(s) corresponding to the variable(s) should have the observed values.
+#' @param BD.Insitu A \code{data.table} file containing the in-situ station coordinates.
+#'                  This file must have 3 columns: the first column is \code{Cod}, which indicates the unique code
+#'                  for identifying each station. This code should match the one used in the \code{data.table} of the 'BD.Insitu'.
+#'                  The second and third columns represent the \code{X} and \code{Y} coordinates of each in-situ station, respectively.
+#' @param ntree An integer representing the number of trees to use in the random forest model. Default is 2000.
+#' @param threshold A numeric value for setting a threshold for the final predictions. Values below this threshold will be set to 0. Default is NULL.
+#' @param save_model A logical value indicating whether to save the final corrected model in NetCDF format.
+#'                  Default is \code{FALSE}, which does not save the model.
+#'                  If \code{TRUE}, the corrected model will be saved to a NetCDF file."
+#'                  It is important that, before executing the function, the directory where the file will be saved is defined.
+#'                  using \code{setwd(“path/directory”)}.
+#' @param name_save The name under which the model will be saved if \code{save_model = TRUE}.
+#'                  By default, the model is saved with the name \code{"Model_RFplus"}.
+#'                  The name should be provided without an extension, as the function will append the appropriate file extension (.nc).
+#'
+#' @return A \code{terra} raster object containing the corrected environmental data.
+#'         The output will have the same spatial resolution and extent as the input covariates.
+#' @author Jonnathan Augusto Landi Bermeo
+#'
+#' @import terra
+#' @import data.table
+#' @import dplyr
+#' @import randomForest
+#' @import pbapply
+#' @import ncdf4
+#'
+#' @export
 
-RFplus = function(Covariates, BD.Insitu, Cords_Insitu, ntree = 2000) {
+RFplus = function(Covariates, BD.Insitu, Cords_Insitu, ntree = 2000,
+                  threshold = NULL, save_model = F, name_save = NULL) {
   ##############################################################################
   #                      Check the input data of the covariates                #
   ##############################################################################
   # Verify the class of covariates
-  class_check = lapply(Covariates, class)
-  if (!all(sapply(class_check, function(x) x == class_check[[1]]))) stop("The class of the covariates are different (all classes should be similar).")
+  class_check = sapply(Covariates, class)
+  if (length(unique(class_check)) > 1) stop("The class of the covariates are different (all classes should be similar).")
 
   # Verify the extent of covariates
-  ext_check = lapply(Covariates, function(x) terra::ext(x))
+  ext_check = sapply(Covariates, function(x) terra::ext(x))
   if (!all(sapply(ext_check, function(x) x == ext_check[[1]]))) stop("The extension of the covariates are different (all extensions should be similar).")
 
   # Verify the crc of covariates
-  crs_check = lapply(Covariates, function(x) terra::crs(x))
-  if (!all(sapply(crs_check, function(x) x == crs_check[[1]]))) stop("The crs of the covariates are different (all crs should be similar).")
+  crs_check = sapply(Covariates, function(x) terra::crs(x))
+  if (length(unique(crs_check)) > 1) stop("The crs of the covariates are different (all crs should be similar).")
 
   ##############################################################################
   #                    Check input data from on-site stations                  #
@@ -75,10 +103,12 @@ RFplus = function(Covariates, BD.Insitu, Cords_Insitu, ntree = 2000) {
 
   # RandonForest function for bias correction
   RF_train = function(day_COV, fecha) {
+
     data_obs = data_train[Date == as.Date(fecha), ] # Filtering the observation 'i'
     data_obs = data_obs[!is.na(var)] # Method for training models independently of NAs
+    data_obs$ID = 1:nrow(data_obs) # ID for the data.table
 
-    points_EstTrain = merge.data.table(data_obs, Points_Train, by = c("ID", "Cod"))
+    points_EstTrain = merge.data.table(data_obs, Points_Train, by = "Cod")
     points_EstTrain = terra::vect(points_EstTrain, geom = c("X", "Y"), crs = terra::crs(Sample_lyrs))
 
     # Calculate the Euclidean distance of my training set
@@ -89,267 +119,63 @@ RFplus = function(Covariates, BD.Insitu, Cords_Insitu, ntree = 2000) {
     day_COV$distance_ED = distance_ED
     names_covs = names(day_COV)
 
-    # Merge the covariates with the training data (BUG BUG BUG)
+    # Merge the covariates with the training data
+
     data_cov = lapply(day_COV, function(x) terra::extract(x, points_EstTrain))
     data_cov = Reduce(function(x, y) merge(x, y, by = "ID", all = TRUE), data_cov)
-    names(data_cov)[2:length(data_cov)] = names
+    names(data_cov)[2:length(data_cov)] = names_covs
 
-    # Generate my dependent variable file
-    obs = RF.data_Train[Date == as.Date(fecha), ] # Buscar metodologia luego para asignar fecha
-    obs$ID = 1:nrow(obs)
-    Fecha = unique(obs$Date)
-    obs = obs[,.(ID, var)]
-    dt.train = merge(obs, data_cov, by = "ID")
+    # Data train RF
+    dt.train = merge(data_obs[,.(ID, Date, var)], data_cov, by = "ID")
+    dt.train = dt.train[, !(c("ID", "Date")), with = FALSE]
 
+    # Generate RF model to predict values
+    RF_model = randomForest::randomForest(var ~ ., data = dt.train, na.action = na.omit, ntree = ntree)
 
-    dt.train = dt.train[, !("ID"), with = FALSE] # Usando data.table
-    RF_model = randomForest::randomForest(var ~ ., data = dt.train, na.action = na.omit, ntree = 2000)
+    # Generate RF model to predict residuals
+    pred_m1_RF = predict(RF_model, dt.train[,-("var")])
+    val_m1_RF = data.table(Obs = dt.train$var, sim = pred_m1_RF)
+    val_m1_RF$residuals = val_m1_RF$Obs - val_m1_RF$sim
 
-    # Primeras predicciones
-    res_f = predict(RF_model, dt.train[,-1])
-    res_f = data.table(var = dt.train$var, sim = res_f)
-    res_f$residuals = res_f$var - res_f$sim
-    res_f = res_f[,.(residuals)]
+    dt.train_resi = cbind(residuals = val_m1_RF$residuals, dt.train[, setdiff(names(dt.train), "var"), with = FALSE])
 
-    dt.train_resi = cbind(res_f, dt.train)
-    dt.train_resi = dt.train_resi[, !("var"), with = FALSE]
-    RF_model_f = randomForest::randomForest(residuals ~ ., data = dt.train_resi, na.action = na.omit, ntree = 2000)
+    RF_model_resdls = randomForest::randomForest(residuals ~ ., data = dt.train_resi, na.action = na.omit, ntree = ntree)
 
+    # Make predictions over the entire satellite dataset.
+    cov_Sat = terra::rast(day_COV)
 
-    cov.day = terra::rast(day_COV)
+    # 1. value prediction
+    sat_1 = terra::predict(cov_Sat, RF_model)
 
-    # Realizar la predicción utilizando el modelo de Random Forest
-    result_RF = terra::predict(cov.day, RF_model)
-    result_RF_rsd = terra::predict(cov.day, RF_model_f)
-    result_final = result_RF + result_RF_rsd
+    # 2. Prediction of residuals
+    sat_2 = terra::predict(cov_Sat, RF_model_resdls)
 
-    #
-    # plot(result)
-    # vv = terra::extract(result_final, sample.points)
-    # valido = merge(vv, obs, by = "ID")
-    # valido$residuals = valido$lyr1 - valido$var
-    # gof(valido$lyr1, valido$var)
-    ## Version Prueba que Evalua en base a los residuos
-    return(result_final)
+    # Generate the final model
+    final_model = sat_1 + sat_2
+
+    if (!is.null(threshold))  final_model = terra::app(final_model, fun = function(x) ifelse(x < threshold, 0, x))
+
+    return(final_model)
   }
 
+  # Execute analysis all layers
+  pbapply::pboptions(type = "timer", use_lb = T, style = 1, char = " ")
+  message("Creating corrected models. Please wait...")
+  raster_prediction = pbapply::pbsapply(Dates_extracted, function(fecha) {
+    day_COV = lapply(Covariates, function(x) x[[which(Dates_extracted == fecha)]])
+    prediction_lyr = RF_train(day_COV, fecha)
+    names(prediction_lyr) = fecha
+    return(prediction_lyr)
+  }, simplify = FALSE)
 
-  # Creo mi archivo de puntos
-  #   RF.dtrain.points = merge(RF.data_Train, cords_bqd, by = "Cod")
-  #   sample.points = unique(RF.dtrain.points[,.(Cod, X, Y)])
-  #
-  # #  RF.dtrain.points = terra::vect(RF.dtrain.points, geom = c("lon", "lat"), crs = terra::crs(DEM)) # Cambiar luego por Dem dentro de la lista
-  #   sample.points = terra::vect(sample.points, geom = c("X", "Y"), crs = terra::crs(Covariates[[1]]))
-  ##############################################################################
-  #                       Creo mi archivo de coordenadas                       #
-  ##############################################################################
+  raster_final = terra::rast(raster_prediction)
 
-
-  ##############################################################################
-  #                                  Entrenamiento diario                      #
-  ##############################################################################
-  # day_COV = sapply(Covariates, function(x) subset(x, n), simplify = FALSE) n = numero de capa
-  #distance_ED = terra::distance(day_COV[[1]], sample.points, rasterize=FALSE)
-  #  names(distance_ED) = "Distance_ED"
-  # day_COV$distance_ED = distance_ED
-
-  # day_predict=
-
-  RF_train = function(day_COV, fecha) {
-
-    names = names(day_COV)
-
-    # Extract layer i from my covariables
-    data_cov = lapply(day_COV, function(x) terra::extract(x, sample.points, method = "simple"))
-    data_cov = Reduce(function(x, y) merge(x, y, by = "ID", all = TRUE), data_cov)
-    names(data_cov)[2:length(data_cov)] = names
-
-    # Generate my dependent variable file
-    obs = RF.data_Train[Date == as.Date(fecha), ] # Buscar metodologia luego para asignar fecha
-    obs$ID = 1:nrow(obs)
-    Fecha = unique(obs$Date)
-    obs = obs[,.(ID, var)]
-    dt.train = merge(obs, data_cov, by = "ID")
-
-
-    dt.train = dt.train[, !("ID"), with = FALSE] # Usando data.table
-    RF_model = randomForest::randomForest(var ~ ., data = dt.train, na.action = na.omit, ntree = 2000)
-
-    # Primeras predicciones
-    res_f = predict(RF_model, dt.train[,-1])
-    res_f = data.table(var = dt.train$var, sim = res_f)
-    res_f$residuals = res_f$var - res_f$sim
-    res_f = res_f[,.(residuals)]
-
-    dt.train_resi = cbind(res_f, dt.train)
-    dt.train_resi = dt.train_resi[, !("var"), with = FALSE]
-    RF_model_f = randomForest::randomForest(residuals ~ ., data = dt.train_resi, na.action = na.omit, ntree = 2000)
-
-
-    cov.day = terra::rast(day_COV)
-
-    # Realizar la predicción utilizando el modelo de Random Forest
-    result_RF = terra::predict(cov.day, RF_model)
-    result_RF_rsd = terra::predict(cov.day, RF_model_f)
-    result_final = result_RF + result_RF_rsd
-
-    #
-    # plot(result)
-    # vv = terra::extract(result_final, sample.points)
-    # valido = merge(vv, obs, by = "ID")
-    # valido$residuals = valido$lyr1 - valido$var
-    # gof(valido$lyr1, valido$var)
-    ## Version Prueba que Evalua en base a los residuos
-    return(result_final)
+  if (save_model) {
+    message("Saving model. Please wait.")
+    if (is.null(name_save)) name_save = "Model_RFplus"
+    name_saving = paste0(name_save, ".nc")
+    terra::writeCDF(raster_final, filename= name_saving, overwrite=TRUE)
   }
 
-  # Calculo de distancia euclidiana como Covariable.
-  distance_ED = terra::distance(Covariates[[1]][[1]], sample.points, rasterize=FALSE)
-  names(distance_ED) = "Distance_ED"
-  res_prediction = list()
-  for (i in 1:length(Dates_complete)) {
-    message("Iteracion: ", i, " de ", length(Dates_complete))
-    day_COV = sapply(Covariates, function(x) subset(x, i), simplify = FALSE)
-    day_COV$distance_ED = distance_ED
-    fecha = as.Date(Dates_complete[i])
-
-    cap = RF_train(day_COV, fecha)
-    names(cap) = fecha
-    res_prediction[[i]] = cap
-  }
-
-  raster_complete = terra::rast(res_prediction)
-
-  # # Metodo 3. Correccion con QM o DQM (por investigar los dos)
-  # presc = terra::extract(raster_complete, sample.points, method = "simple")
-  # dat_QM = terra::extract(raster_complete, sample.points, method = "simple")
-  # nombres = names(dat_QM)
-  # nombres = nombres[-1]
-  # dat_QM = t(dat_QM)
-  # dat_QM = data.table(dat_QM)
-  # dat_QM = dat_QM[-1,]
-  #
-  # dat_QM = cbind(Date = nombres, dat_QM)
-  # dat_QM$Date = as.IDate(dat_QM$Date)
-  #
-  # colnames(dat_QM) = names(bqd)
-  #
-  #
-  # dat_QM = melt(
-  #   dat_QM,
-  #   id.vars = "Date", # Columna fija
-  #   variable.name = "Cod", # Nombre para las variables originales
-  #   value.name = "var" # Nombre para los valores
-  # )
-  #
-  # merge_mf = merge(dat_QM, RF.data_Train, by = c("Date", "Cod"))
-  # names(merge_mf) = c("Date", "Cod", "Sim", "Obs")
-  #
-  # # Cuantiles
-  # cuantiles = fitQmapRQUANT(merge_mf$Obs, merge_mf$Sim, wet.day = FALSE, Qstep = 0.01,nboot = 100)
-  # qfit = cuantiles$par$fitq
-  #
-  #
-  # RF_cuantile = function(day_COV, fecha, n) {
-  #
-  #   names = names(day_COV)
-  #
-  #   # Extract layer i from my covariables
-  #   data_cov = lapply(day_COV, function(x) terra::extract(x, sample.points, method = "simple"))
-  #   data_cov = Reduce(function(x, y) merge(x, y, by = "ID", all = TRUE), data_cov)
-  #   names(data_cov)[2:length(data_cov)] = names
-  #
-  #   # Generate my dependent variable file
-  #   obs = rep(qfit[[n]], nrow(data_cov))
-  #   obs = data.table(obs = obs)
-  #
-  #   obs$ID = 1:nrow(obs)
-  #   Fecha = unique(obs$Date)
-  #   obs = obs[,.(ID, obs)]
-  #   dt.train = merge(obs, data_cov, by = "ID")
-  #
-  #
-  #   dt.train = dt.train[, !("ID"), with = FALSE] # Usando data.table
-  #   RF_model = randomForest::randomForest(obs ~ ., data = dt.train, na.action = na.omit, ntree = 2000)
-  #
-  #   cov.day = terra::rast(day_COV)
-  #
-  #   # Realizar la predicción utilizando el modelo de Random Forest
-  #   result_RF = terra::predict(cov.day, RF_model)
-  #
-  #   #
-  #   # plot(result)
-  #   # vv = terra::extract(result_final, sample.points)
-  #   # valido = merge(vv, obs, by = "ID")
-  #   # valido$residuals = valido$lyr1 - valido$var
-  #   # gof(valido$lyr1, valido$var)
-  #   ## Version Prueba que Evalua en base a los residuos
-  #   return(result_RF)
-  # }
-  #
-  # cuantiles_list = list()
-  # for (i in 1:length(Dates_complete)) {
-  #   message("Iteracion: ", i, " de ", length(Dates_complete))
-  #   day_COV = sapply(Covariates, function(x) subset(x, i), simplify = FALSE)
-  #   day_COV$distance_ED = distance_ED
-  #   fecha = as.Date(Dates_complete[i])
-  #
-  #   cap = RF_cuantile(day_COV, fecha, i)
-  #   names(cap) = fecha
-  #   cuantiles_list[[i]] = cap
-  # }
-  #
-  # raster_cuantiles = terra::rast(cuantiles_list)
-
-  #qm1 = doQmapRQUANT(merge_mf$Sim, cuantiles)
-
-
-
-  # merge_f = cbind(merge_mf, cuantiles_obs)
-
-  # Prediccion sobre cuantiles.
-
-
-  return(raster_complete)
+  return(raster_final)
 }
-
-################################################################################
-# Debug
-library(data.table)
-library(terra)
-library(tidyr)
-library(dplyr)
-library(randomForest)
-library(qmap)
-
-BD.Insitu = fread("D:/ultimo_WINDOWS/Sequias_GIZ/RFmerge/Red_Actual/Archivos_Train/Est_trainPpts.csv")
-BD.Insitu = BD.Insitu[c(1:100),]
-Cords_Insitu = fread("C:/Users/Jonna/Desktop/Artículos/Repartición espacial/Scripts/Testing/PPGIs.csv")
-
-CHIRPS = rast("C:/Users/Jonna/Desktop/Artículos/Repartición espacial/Scripts/Testing/CHIRPS.nc")
-MSWEP = rast("C:/Users/Jonna/Desktop/Artículos/Repartición espacial/Scripts/Testing/MSWEP.nc")
-DEM = rast("C:/Users/Jonna/Desktop/Artículos/Repartición espacial/Scripts/Testing/DEM.nc")
-
-CHIRPS = CHIRPS[[1:100]]
-MSWEP = MSWEP[[1:100]]
-
-Covariates = list(DEM = DEM, CHIRPS = CHIRPS, MSWEP = MSWEP)
-rm(CHIRPS, MSWEP, DEM)
-
-probando = RFbias(Covariates, bqd, cords_bqd)
-setwd("C:/Users/Jonna/Desktop/Artículos/Repartición espacial/Scripts/Testing/Results_1")
-terra::writeCDF(modelo_1[[1]], filename= "CapaTest_1.nc", overwrite=TRUE)
-
-# cords_sf = st_as_sf(cords_bqd, coords = c("lon", "lat"), crs = 4326)
-# cords_utm_sf = st_transform(cords_sf, crs = 32717)
-# cords_bqd[, X := st_coordinates(cords_utm_sf)[, 1]]
-# cords_bqd[, Y := st_coordinates(cords_utm_sf)[, 2]]
-# cords_bqd = cords_bqd[,.(Cod, X, Y)]
-# write.csv(cords_bqd, "C:/Users/Jonna/Desktop/Artículos/Repartición espacial/Scripts/Testing/PPGIs.csv", row.names = FALSE)
-# #
-# n = length(colnames(bqd)) # -1 para quitar la columna timestam
-# column_names <- c("TIMESTAMP", paste0("M", sprintf("%03d", 1:(n - 1))))
-# names(Est_TrainPPts) = column_names
-#
-# Est_TrainPPts$TIMESTAMP <- as.Date(Est_TrainPPts$TIMESTAMP, format = "%Y-%m-%d", tz = "UTC")
-# Est_TrainPPts = zoo::zoo(Est_TrainPPts[,-1], order.by = Est_TrainPPts$TIMESTAMP)
