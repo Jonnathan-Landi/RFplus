@@ -103,7 +103,6 @@ RFplus = function(Covariates, BD_Insitu, Cords_Insitu, ntree = 2000,
 
   # Extraction of a sample to save the correction results
   Sample_lyrs = Covariates[[2]][[1]]
-  Sample_lyrs = Sample_lyrs * 0
 
   # RandonForest function for bias correction
   RF_train = function(day_COV, fecha) {
