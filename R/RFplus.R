@@ -25,6 +25,7 @@
 #' @param name_save The name under which the model will be saved if \code{save_model = TRUE}.
 #'                  By default, the model is saved with the name \code{"Model_RFplus"}.
 #'                  The name should be provided without an extension, as the function will append the appropriate file extension (.nc).
+#' @param seed An integer value to set the reproducibility seed in the random forest model. Default is "123".
 #'
 #' @return A \code{terra} raster object containing the corrected environmental data.
 #'         The output will have the same spatial resolution and extent as the input covariates.
@@ -39,8 +40,8 @@
 #'
 #' @export
 
-RFplus = function(Covariates, BD.Insitu, Cords_Insitu, ntree = 2000,
-                  threshold = NULL, save_model = F, name_save = NULL) {
+RFplus = function(Covariates, BD_Insitu, Cords_Insitu, ntree = 2000,
+                  threshold = NULL, save_model = F, name_save = NULL, seed = 123) {
   ##############################################################################
   #                      Check the input data of the covariates                #
   ##############################################################################
@@ -60,10 +61,13 @@ RFplus = function(Covariates, BD.Insitu, Cords_Insitu, ntree = 2000,
   #                    Check input data from on-site stations                  #
   ##############################################################################
   # Verify the BD.Insitu is data.table
-  if (!is.data.table(BD.Insitu)) stop("The data of the on-site stations should be a data.table.")
+  if (!is.data.table(BD_Insitu)) stop("The data of the on-site stations should be a data.table.")
 
   # Verify the columns of Cords_Insitu
   if (!is.data.table(Cords_Insitu)) stop("The coordinate data of the on-site stations must be a data.table.")
+
+  # Check that the coordinate names appear in the observed data
+  if (!all(Cords_Insitu$Cod %in% setdiff(colnames(BD_Insitu), "Date"))) stop("The names of the coordinates do not appear in the observed data.")
 
   ##############################################################################
   #                             Algorithm start                                #
@@ -84,18 +88,18 @@ RFplus = function(Covariates, BD.Insitu, Cords_Insitu, ntree = 2000,
   #                           Check the input data on site                     #
   ##############################################################################
   # Training data for randomForest.
-  data_train = melt(
-    BD.Insitu,
+  data_train = data.table::melt(
+    BD_Insitu,
     id.vars = "Date",
     variable.name = "Cod",
     value.name = "var"
   ) %>%
-    mutate(ID = as.numeric(factor(Cod)))
+    dplyr::mutate(ID = as.numeric(factor(Cod)))
 
   # Extract Dates
-  Dates_extracted = unique(data_train$Date)
-  Points_Train = merge.data.table(data_train, Cords_Insitu, by = "Cod")
-  Points_Train = unique(Points_Train[,.(ID, Cod, X, Y)])
+  Dates_extracted = base::unique(data_train$Date)
+  Points_Train = data.table::merge.data.table(data_train, Cords_Insitu, by = "Cod")
+  Points_Train = base::unique(Points_Train[,.(ID, Cod, X, Y)])
 
   # Extraction of a sample to save the correction results
   Sample_lyrs = Covariates[[2]][[1]]
@@ -103,12 +107,11 @@ RFplus = function(Covariates, BD.Insitu, Cords_Insitu, ntree = 2000,
 
   # RandonForest function for bias correction
   RF_train = function(day_COV, fecha) {
-
     data_obs = data_train[Date == as.Date(fecha), ] # Filtering the observation 'i'
     data_obs = data_obs[!is.na(var)] # Method for training models independently of NAs
     data_obs$ID = 1:nrow(data_obs) # ID for the data.table
 
-    points_EstTrain = merge.data.table(data_obs, Points_Train, by = "Cod")
+    points_EstTrain = data.table::merge.data.table(data_obs, Points_Train, by = "Cod")
     points_EstTrain = terra::vect(points_EstTrain, geom = c("X", "Y"), crs = terra::crs(Sample_lyrs))
 
     # Calculate the Euclidean distance of my training set
@@ -120,7 +123,6 @@ RFplus = function(Covariates, BD.Insitu, Cords_Insitu, ntree = 2000,
     names_covs = names(day_COV)
 
     # Merge the covariates with the training data
-
     data_cov = lapply(day_COV, function(x) terra::extract(x, points_EstTrain))
     data_cov = Reduce(function(x, y) merge(x, y, by = "ID", all = TRUE), data_cov)
     names(data_cov)[2:length(data_cov)] = names_covs
@@ -130,7 +132,11 @@ RFplus = function(Covariates, BD.Insitu, Cords_Insitu, ntree = 2000,
     dt.train = dt.train[, !(c("ID", "Date")), with = FALSE]
 
     # Generate RF model to predict values
-    RF_model = randomForest::randomForest(var ~ ., data = dt.train, na.action = na.omit, ntree = ntree)
+    set.seed(seed)
+
+    RF_model = suppressWarnings(
+      randomForest::randomForest(var ~ ., data = dt.train, na.action = na.omit, ntree = ntree)
+    )
 
     # Generate RF model to predict residuals
     pred_m1_RF = predict(RF_model, dt.train[,-("var")])
@@ -139,7 +145,9 @@ RFplus = function(Covariates, BD.Insitu, Cords_Insitu, ntree = 2000,
 
     dt.train_resi = cbind(residuals = val_m1_RF$residuals, dt.train[, setdiff(names(dt.train), "var"), with = FALSE])
 
-    RF_model_resdls = randomForest::randomForest(residuals ~ ., data = dt.train_resi, na.action = na.omit, ntree = ntree)
+    RF_model_resdls = suppressWarnings(
+      randomForest::randomForest(residuals ~ ., data = dt.train_resi, na.action = na.omit, ntree = ntree)
+    )
 
     # Make predictions over the entire satellite dataset.
     cov_Sat = terra::rast(day_COV)
@@ -152,6 +160,7 @@ RFplus = function(Covariates, BD.Insitu, Cords_Insitu, ntree = 2000,
 
     # Generate the final model
     final_model = sat_1 + sat_2
+    final_model = terra::app(final_model, fun = function(x) round(x, 1))
 
     if (!is.null(threshold))  final_model = terra::app(final_model, fun = function(x) ifelse(x < threshold, 0, x))
 
@@ -169,7 +178,9 @@ RFplus = function(Covariates, BD.Insitu, Cords_Insitu, ntree = 2000,
   }, simplify = FALSE)
 
   raster_final = terra::rast(raster_prediction)
-
+  ##############################################################################
+  #                           Save the model if necessary                      #
+  ##############################################################################
   if (save_model) {
     message("Saving model. Please wait.")
     if (is.null(name_save)) name_save = "Model_RFplus"
