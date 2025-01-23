@@ -1,15 +1,15 @@
 Package: RFplus
 Type: Package
 Title: Bias correction model using Random Forest for satellite-derived environmental data
-Version: 1.1.1
+Version: 1.1.2
 Encoding: UTF-8
 Author: Jonnathan Augusto Landi Bermeo [aut, cre, cph] (<https://orcid.org/0009-0003-3162-6647>)
 Authors@R: c(person("Jonnathan Augusto Landi Bermeo", email = "jonnathan.landi@outlook.com", role=c("aut", "cre", "cph"), comment=c(ORCID = "0009-0003-3162-6647")))
 Maintainer: Jonnathan Augusto Landi Bermeo <jonnathan.landi@outlook.com>
 Description: his package applies a Random Forest-based bias correction method to satellite-derived environmental data, such as precipitation, temperature, and other relevant meteorological or environmental variables. The model corrects biases in these satellite products by incorporating in-situ measurements and environmental covariates, including the Digital Elevation Model (DEM).
 License: GPL (>=3)
-Depends: R (>= 4.4.2)
-Imports: terra, randomForest, data.table, dplyr, ncdf4, pbapply, ranger
+Depends: R (>= 4.4.0)
+Imports: terra, randomForest, data.table, dplyr, ncdf4, pbapply, ranger, methods
 URL: https://github.com/Jonnathan-Landi/RFplus
 LazyLoad: yes
 RoxygenNote: 7.3.2

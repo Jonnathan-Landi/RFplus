@@ -39,15 +39,17 @@
 #'
 #' @author Jonnathan Augusto Landi Bermeo
 #'
-#' @import terra
+#' @importFrom terra ext crs nlyr rast vect extract distance writeCDF
 #' @import data.table
-#' @import dplyr
-#' @import randomForest
-#' @import pbapply
-#' @import ncdf4
-#' @import ranger
+#' @importFrom dplyr mutate
+#' @importFrom randomForest tuneRF
+#' @importFrom ranger ranger
+#' @importFrom pbapply pbsapply pboptions
+#' @importFrom ncdf4 nc_open ncvar_get nc_close
+#' @importFrom methods as
+#' @importFrom stats na.omit predict
+#' @importFrom utils globalVariables
 #' @export
-
 
 RFplus = function(Covariates, BD_Insitu, Cords_Insitu, ntree = 2000, threshold = NULL,
                   n_round = NULL, save_model = F, name_save = NULL, seed = 123) {

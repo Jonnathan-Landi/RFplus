@@ -60,7 +60,7 @@ The RFplus methodology operates in three stages:
 - **Outlier Adjustment**: A Quantile Regression Forest computes prediction quantiles (Q5, Q8, Q9) to preserve distribution tails.
 
 Final predictions are calculated as:
-\deqn{(Q5 + Q8 + Q9 + Residual-adjusted prediction) / 4}
+\deqn{(Q5 + Q8 + Q9 + (adjusted prediction - residuals prediction) / 4}
 This formulation balances overall accuracy while maintaining outliers.
 }
 \note{
