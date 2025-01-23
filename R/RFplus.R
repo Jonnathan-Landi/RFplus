@@ -1,35 +1,41 @@
-#RFplus: Bias correction of satellite products using a set of random forest models and quantile regression forests
+#' RFplus: Bias Correction of Satellite Products Using Random Forest and Quantile Regression Forests
 #'
-#RFplus applies a sophisticated bias correction method that combines three modeling steps to improve satellite-derived environmental data. The ensemble approach uses: 1) Initial Random Forest predictions, 2) Residual corrections with a second Random Forest, and 3) Outlier preservation using Quantile Regression Forest. The final predictions combine the results of all stages using weighted averages.
+#' RFplus applies a comprehensive bias correction approach that combines three modeling steps to enhance satellite-derived environmental data. This ensemble method includes:
+#' 1) Initial Random Forest predictions,
+#' 2) Residual corrections using a secondary Random Forest, and
+#' 3) Outlier preservation through Quantile Regression Forests (QRF).
+#' The final predictions are calculated as a weighted average of all steps.
 #'
-#' @details The model operates in three sequential stages:
-#' 1. **Base prediction**: Random Forest model using satellite data and environmental covariates.
-#' 2. **Residual correction**: Secondary Random Forest model predicting the residuals from the first stage.
-#' 3. **Outlier adjustment**: Quantile Regression Forest (QRF) generating prediction quantiles (Q5, Q8, Q9).
+#' @details The RFplus methodology operates in three stages:
+#' - **Base Prediction**: A Random Forest model generates predictions based on satellite data and environmental covariates.
+#' - **Residual Correction**: A second Random Forest model corrects residual errors from the base predictions.
+#' - **Outlier Adjustment**: A Quantile Regression Forest computes prediction quantiles (Q5, Q8, Q9) to preserve distribution tails.
 #'
-#' Final predictions are calculated as (Q5 + Q8 + Q9 + Residual-adjusted prediction) / 4
+#' Final predictions are calculated as:
+#' \deqn{(Q5 + Q8 + Q9 + (adjusted prediction - residuals prediction) / 4}
+#' This formulation balances overall accuracy while maintaining outliers.
 #'
-#' This approach maintains outliers while reducing overall bias. The QRF component specifically helps preserve the tails of the distribution through its quantile estimates.
-#'
-#' @param Covariates List of SpatRaster objects that represent predictive features. Must include:
-#' - Satellite data product layers.
+#' @param Covariates A list of `terra::SpatRaster` objects representing predictive features, including:
+#' - Satellite-derived data layers
 #' - Digital Elevation Model (DEM)
-#' - Other relevant environmental covariates
-#' @param BD_Insitu data.table with in-situ measurements containing:
-#' - `Date`: Dates of the measurements (Date format)
-#' - Columns for observed variables (numerical values)
-#' @param Cords_Insitu data.table with station coordinates:
-#' - `Cod`: Unique station ID (matching BD_Insitu).
-#' - `X`: Longitude coordinates
-#' - `Y`: Latitude coordinates
-#' @param ntree Number of trees for all forest models (applies to RF, residual RF and QRF). Default: 2000
-#' @param threshold Numerical limit for minimum prediction values. Predictions < threshold are set to 0. Default: NULL (Values less than 0 are retained (Useful in temperature predictions)).
-#' @param n_round Number of decimal places for rounding the final predictions. Default: NULL (If default is NULL, all decimal places will be rounded)
-#' @param seed Random seed for reproducibility. Default: 123
-#' @param save_model Logic indicating whether to save the output as NetCDF. Default: FALSE
-#' @param name_save Base file name for the saved model (Do not add the .nc extension). Default: “Model_RFplus”.
+#' - Additional environmental covariates as needed
+#' @param BD_Insitu A `data.table` containing in-situ measurements with the following columns:
+#' - `Date`: Measurement dates (Date format)
+#' - Observed variable columns with numerical values
+#' @param Cords_Insitu A `data.table` with station coordinates, including:
+#' - `Cod`: Unique station ID (matching IDs in `BD_Insitu`)
+#' - `X`: Longitude values
+#' - `Y`: Latitude values
+#' @param ntree An integer specifying the number of trees for all forest models (RF, residual RF, and QRF). Default: 2000.
+#' @param threshold A numeric value defining the lower limit for predictions. Predictions below this threshold are set to 0. Default: `NULL` (retains all values, useful for temperature predictions).
+#' @param n_round An integer indicating the number of decimal places for rounding final predictions. Default: `NULL` (no rounding applied).
+#' @param seed An integer for setting the random seed to ensure reproducibility. Default: 123.
+#' @param save_model A logical value indicating whether to save the final model output as a NetCDF file. Default: `FALSE`.
+#' @param name_save A character string specifying the base file name for saved outputs (without the `.nc` extension). Default: "Model_RFplus".
 #'
-#' @return terra::SpatRaster with bias-corrected predictions. Spatial properties match input covariates.
+#' @return A `terra::SpatRaster` containing the bias-corrected predictions. Spatial properties match those of the input covariates.
+#'
+#' @note This approach ensures outliers are preserved while reducing overall bias. The QRF component specifically enhances the preservation of distribution tails through its quantile-based estimates.
 #'
 #' @author Jonnathan Augusto Landi Bermeo
 #'
@@ -41,6 +47,7 @@
 #' @import ncdf4
 #' @import ranger
 #' @export
+
 
 RFplus = function(Covariates, BD_Insitu, Cords_Insitu, ntree = 2000, threshold = NULL,
                   n_round = NULL, save_model = F, name_save = NULL, seed = 123) {
