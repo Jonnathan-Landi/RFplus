@@ -238,8 +238,8 @@ RFplus = function(Covariates, BD_Insitu, Cords_Insitu, ntree = 2000, threshold =
 
     # Ensamble of the models
     Ensamble = terra::rast(data.frame(
-      x = modelo_final$x,
-      y = modelo_final$y,
+      x = final_model$x,
+      y = final_model$y,
       value = final_model$mean
     ), crs = terra::crs(Sample_lyrs))
 
