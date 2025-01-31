@@ -1,103 +1,127 @@
-#' RFplus: Bias Correction of Satellite Products Using Random Forest and Quantile Regression Forests
+# Declare global variables to prevent R CMD check warnings
+utils::globalVariables(c("Cod", "ID", "X", "Y", "Date", "Obs", "sim", "residuals", "var"))
+#' Bias Correction of Satellite Products Using Hybrid Random Forest and Quantile Mapping
 #'
-#' RFplus applies a comprehensive bias correction approach that combines three modeling steps to enhance satellite-derived environmental data. This ensemble method includes:
-#' 1) Initial Random Forest predictions,
-#' 2) Residual corrections using a secondary Random Forest, and
-#' 3) Outlier preservation through Quantile Regression Forests (QRF).
-#' The final predictions are calculated as a weighted average of all steps.
+#' @description
+#' Applies a three-step bias correction combining Random Forest predictions, residual correction,
+#' and distribution adjustment using quantile mapping methods.
 #'
-#' @details The RFplus methodology operates in three stages:
-#' - **Base Prediction**: A Random Forest model generates predictions based on satellite data and environmental covariates.
-#' - **Residual Correction**: A second Random Forest model corrects residual errors from the base predictions.
-#' - **Outlier Adjustment**: A Quantile Regression Forest computes prediction quantiles (Q5, Q8, Q9) to preserve distribution tails.
+#' @details
+#' `RFplus` implements a hybrid approach:
+#' 1. **Base Prediction**: Initial Random Forest model using satellite data and covariates.
+#' 2. **Residual Correction**: Secondary Random Forest to correct residuals from step 1.
+#' 3. **Distribution Adjustment**: Quantile mapping (QUANT/RQUANT) to match observed distribution.
 #'
-#' Final predictions are calculated as:
-#' \deqn{(Q5 + Q8 + Q9 + (adjusted prediction - residuals prediction) / 4}
-#' This formulation balances overall accuracy while maintaining outliers.
+#' The final prediction combines all three steps, preserving outliers while reducing bias.
 #'
-#' @param Covariates A list of `terra::SpatRaster` objects representing predictive features, including:
-#' - Satellite-derived data layers
-#' - Digital Elevation Model (DEM)
-#' - Additional environmental covariates as needed
-#' @param BD_Insitu A `data.table` containing in-situ measurements with the following columns:
-#' - `Date`: Measurement dates (Date format)
-#' - Observed variable columns with numerical values
-#' @param Cords_Insitu A `data.table` with station coordinates, including:
-#' - `Cod`: Unique station ID (matching IDs in `BD_Insitu`)
-#' - `X`: Longitude values
-#' - `Y`: Latitude values
-#' @param ntree An integer specifying the number of trees for all forest models (RF, residual RF, and QRF). Default: 2000.
-#' @param threshold A numeric value defining the lower limit for predictions. Predictions below this threshold are set to 0. Default: `NULL` (retains all values, useful for temperature predictions).
-#' @param n_round An integer indicating the number of decimal places for rounding final predictions. Default: `NULL` (no rounding applied).
-#' @param seed An integer for setting the random seed to ensure reproducibility. Default: 123.
-#' @param save_model A logical value indicating whether to save the final model output as a NetCDF file. Default: `FALSE`.
-#' @param name_save A character string specifying the base file name for saved outputs (without the `.nc` extension). Default: "Model_RFplus".
+#' @param BD_Insitu A `data.table` with in-situ measurements containing:
+#'  - `Date`: Date of measurements (Date format)
+#'  - Columns with observed values (numeric)
+#' @param Cords_Insitu A `data.table` with station coordinates:
+#'  - `Cod`: Station ID (matching `BD_Insitu`)
+#'  - `X`: Longitude
+#'  - `Y`: Latitude
+#' @param Covariates List of `terra::SpatRaster` objects containing:
+#'  - Satellite data layers
+#'  - Digital Elevation Model (DEM)
+#'  - Other environmental covariates
+#' @param ntree Number of trees for Random Forest (default: 2000)
+#' @param method Distribution adjustment method: "RQUANT", "QUANT", or "none" (default: "none")
+#' @param ratio Maximum search radius (km) for nearest station adjustment (default: 15)
+#' @param wet.day Logical threshold for wet-day correction or numeric value (see Note)
+#' @param seed Random seed for reproducibility (default: 123)
+#' @param n_round Number of decimal places for predictions (default: NULL)
+#' @param save_model Save output as NetCDF file? (default: FALSE)
+#' @param name_save Base name for output file (default: "Model_RFplus")
+#' @param ... Additional arguments passed to methods
 #'
-#' @return A `terra::SpatRaster` containing the bias-corrected predictions. Spatial properties match those of the input covariates.
+#' @note The `wet.day` parameter can be:
+#' - `FALSE`: No wet-day correction
+#' - `TRUE`: Apply correction with default threshold (0.1 mm)
+#' - Numeric value: Custom threshold
 #'
-#' @note This approach ensures outliers are preserved while reducing overall bias. The QRF component specifically enhances the preservation of distribution tails through its quantile-based estimates.
-#'
-#' @author Jonnathan Augusto Landi Bermeo
-#'
-#' @importFrom terra ext crs nlyr rast vect extract distance writeCDF
-#' @import data.table
-#' @importFrom dplyr mutate
-#' @importFrom randomForest tuneRF
-#' @importFrom ranger ranger
-#' @importFrom pbapply pbsapply pboptions
-#' @importFrom ncdf4 nc_open ncvar_get nc_close
-#' @importFrom methods as
-#' @importFrom stats na.omit predict
-#' @importFrom utils globalVariables
+#' @rdname RFplus
 #' @export
+RFplus <- function(BD_Insitu, ...) {
+  UseMethod("RFplus")
+}
 
-RFplus = function(Covariates, BD_Insitu, Cords_Insitu, ntree = 2000, threshold = NULL,
-                  n_round = NULL, save_model = F, name_save = NULL, seed = 123) {
+#' @rdname RFplus
+#' @export
+RFplus.default <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NULL, wet.day = FALSE,
+                           ntree = 2000, seed = 123, method=c("RQUANT","QUANT","none"), ratio = 15,
+                           save_model = FALSE, name_save = NULL, ...) {
+
+  if (!inherits(BD_Insitu, "data.table")) stop("BD_Insitu must be a data.table.")
+
+  RFplus.data.table(BD_Insitu = BD_Insitu, Cords_Insitu = Cords_Insitu, Covariates = Covariates,
+                    n_round = n_round, wet.day = wet.day, ntree = ntree, seed = seed, method = method,
+                    ratio = ratio, save_model = save_model, name_save = name_save)
+}
+
+#' @rdname RFplus
+#' @export
+RFplus.data.table <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NULL, wet.day = FALSE,
+                              ntree = 2000, seed = 123, method=c("RQUANT","QUANT","none"), ratio = 15,
+                              save_model = FALSE, name_save = NULL) {
 
   ##############################################################################
   #                      Check the input data of the covariates                #
   ##############################################################################
-  # Verify the class of covariates
-  if (length(unique(sapply(Covariates, class))) > 1) stop("The class of the covariates are different (all classes should be similar).")
+  # Verify that covariates is a list
+  if (!inherits(Covariates, "list")) stop("Covariates must be a list.")
+
+  # Verify that the covariates are type SpatRaster
+  if (!all(sapply(Covariates, function(x) inherits(x, "SpatRaster")))) stop("The covariates must be of type SpatRaster.")
 
   # Verify the extent of covariates
-  ext_check = sapply(Covariates, function(x) terra::ext(x))
-  if (!all(sapply(ext_check, function(x) x == ext_check[[1]]))) stop("The extension of the covariates are different (all extensions should be similar).")
+  ext_list = lapply(Covariates, terra::ext)
+  if (!all(sapply(ext_list, function(x) x == ext_list[[1]]))) stop("The extension of the covariates are different (all extensions should be similar).")
 
   # Verify the crc of covariates
-  if (length(unique(sapply(Covariates, function(x) terra::crs(x)))) > 1) stop("The crs of the covariates are different (all crs should be similar).")
+  if (length(unique(vapply(Covariates, terra::crs, character(1)))) > 1) stop("The crs of the covariates are different (all crs should be similar).")
 
   ##############################################################################
   #                    Check input data from on-site stations                  #
   ##############################################################################
   # Verify the BD_Insitu is data.table
-  if (!is.data.table(BD_Insitu)) stop("The data of the on-site stations should be a data.table.")
+  if (!inherits(BD_Insitu, "data.table")) stop("The data of the on-site stations should be a data.table.")
 
   # Verify the columns of Cords_Insitu
-  if (!is.data.table(Cords_Insitu)) stop("The coordinate data of the on-site stations must be a data.table.")
+  if (!inherits(Cords_Insitu, "data.table")) stop("The coordinate data of the on-site stations must be a data.table.")
 
   # Check that the coordinate names appear in the observed data
-  if (!all(Cords_Insitu$Cod %in% setdiff(colnames(BD_Insitu), "Date"))) stop("The names of the coordinates do not appear in the observed data.")
+  if (!all(Cords_Insitu$Cod %chin% dplyr::setdiff(names(BD_Insitu), "Date"))) stop("The names of the coordinates do not appear in the observed data.")
 
   ##############################################################################
-  #                           Operations with covariables                      #
+  #                Checking the input parameters for quantile mapping          #
   ##############################################################################
-  # DEM identification
-  nlyr_covs = sapply(Covariates, nlyr)
-  indx_dem = which(nlyr_covs == 1)
-  if (length(indx_dem) == 0) stop("The DEM should have a single layer. Check the input DEM.")
+  # Verify the method
+  method = match.arg(method, choices = c("RQUANT", "QUANT", "none"))
+
+  ##############################################################################
+  #               Verify that there is a DEM and manage DEM layers.            #
+  ##############################################################################
+  # Check if there is a DEM layer
+  nlyr_covs = sapply(Covariates, function(x) terra::nlyr(x))
+  index_dem = which(nlyr_covs == 1)
+  if (length(index_dem) == 0) stop("A single layer covariate was not found. Possibly the DEM was not entered.")
+
+  # Replicating the DEM at covariate scale
   nlyrs_tots = which(nlyr_covs != 1)
-
-  # Equalize DEM layers
   nlyr_rep = nlyr_covs[nlyrs_tots[1]]
-  DEM = Covariates[[indx_dem]]
-  DEM = rast(replicate(nlyr_rep, DEM))
-  Covariates[[indx_dem]] = DEM
+  DEM = Covariates[[index_dem]]
+  DEM = terra::rast(replicate(nlyr_rep, DEM))
+  Covariates[[index_dem]] = DEM
+
+  # Verify the layers of the covariates.
+  if (length(unique(sapply(Covariates, function(x) terra::nlyr(x)))) > 1) stop("The number of covariate layers does not match. Check the input data.")
+
   ##############################################################################
   #                         Prepare data for training                          #
   ##############################################################################
   # Layer to sample
-  Sample_lyrs = Covariates[[2]][[1]]
+  Sample_lyrs = DEM[[1]]
 
   # Data for training
   data_train = data.table::melt(
@@ -108,11 +132,14 @@ RFplus = function(Covariates, BD_Insitu, Cords_Insitu, ntree = 2000, threshold =
   ) %>%
     dplyr::mutate(ID = as.numeric(factor(Cod)))
 
-  # Extract Dates
+  # Date of the data
   Dates_extracted = base::unique(data_train$Date)
-  Points_Train = data.table::merge.data.table(data_train, Cords_Insitu, by = "Cod")
+  Points_Train = merge(data_train, Cords_Insitu, by = "Cod")
+  setDT(Points_Train)
+
   Points_Train = base::unique(Points_Train[,.(ID, Cod, X, Y)])
-  Points_VectTrain = terra::vect(Points_Train, geom = c("X", "Y"), crs = terra::crs(Sample_lyrs))
+  setorder(Points_Train, ID)
+  Points_VectTrain = terra::vect(Points_Train, geom = c("X", "Y"), crs = crs(Sample_lyrs))
 
   # Calculate the Distance Euclidean
   distance_ED = setNames(lapply(1:nrow(Points_VectTrain), function(i) {
@@ -125,19 +152,20 @@ RFplus = function(Covariates, BD_Insitu, Cords_Insitu, ntree = 2000, threshold =
   }), Points_VectTrain$Cod)
 
   ##############################################################################
-  #                              Function of RF models                         #
   ##############################################################################
-  RF_Modelplus = function(day_COV, fecha) {
+  #                    Progressive correction methodology                      #
+  ##############################################################################
+  ##############################################################################
 
+  # Model of the Random Forest for the progressive correction 1 y 2 ------------
+  RF_Modelplus = function(day_COV, fecha) {
     for (i in seq_along(day_COV)) {
       names(day_COV)[i] = names(day_COV[[i]])
     }
 
-    data_obs = data_train[Date == as.Date(fecha), ] # Filtering the observation 'i'
-    data_obs = data_obs[!is.na(var)] # Method for training models independently of NAs
-    data_obs$ID = 1:nrow(data_obs)
-
-    points_EstTrain = data.table::merge.data.table(data_obs[,.(ID, Cod)], Points_Train[,.(Cod, X, Y)], by = "Cod")
+    data_obs = data_train[Date == as.Date(fecha), ]
+    points_EstTrain = merge(data_obs[,.(ID, Cod)], Points_Train[,.(Cod, X, Y)], by = "Cod")
+    setorder(points_EstTrain, ID)
     points_EstTrain = terra::vect(points_EstTrain, geom = c("X", "Y"), crs = terra::crs(Sample_lyrs))
 
     # Covariates extras
@@ -147,117 +175,57 @@ RFplus = function(Covariates, BD_Insitu, Cords_Insitu, ntree = 2000, threshold =
     day_COV$diff_alt = terra::rast(difference_altitude[points_EstTrain$Cod]) %>%
       setNames(paste("diff_alt_", seq_along(points_EstTrain$Cod), sep = ""))
 
-    # Training the model
+    #                   Training the model Random Forest (1)                   #
     data_cov = lapply(day_COV, function(x) terra::extract(x, points_EstTrain))
     data_cov = Reduce(function(x, y) merge(x, y, by = "ID", all = TRUE), data_cov)
 
     dt.train = merge(data_obs[,.(ID, Date, var)], data_cov, by = "ID")
-    dt.train = dt.train[, !(c("ID", "Date")), with = FALSE]
+    dt.train = dt.train[, setdiff(names(dt.train), "Date"), with = FALSE]
 
-    # Search for the best mtry
+    # Train Model 1
     set.seed(seed)
-    Hyper_P1 = suppressWarnings(
-      randomForest::tuneRF(
-        x = dt.train[, setdiff(names(dt.train), "var"), with = FALSE],
-        y = dt.train$var,
-        ntreeTry = 100,
-        stepFactor = 1,
-        doBest = T,
-        plot = F,
-        seed = seed,
-        trace = 0
+    Model_P1 = suppressWarnings(
+      randomForest::randomForest(
+        formula = var ~ .,
+        data = dt.train[, setdiff(names(dt.train), "ID"), with = FALSE],
+        ntree = ntree,
+        na.action = stats::na.omit
       )
     )
 
-    # Model 1
-    Model_P1 = ranger::ranger(
-      formula = var ~ .,
-      data = dt.train,
-      num.trees = ntree,
-      seed = seed,
-      mtry = Hyper_P1$mtry
-    )
-
+    #                   Training the model Random Forest (2)                   #
     # Prediction of the Model 1
-    pred_P1 = predict(Model_P1, dt.train[,-("var")])
-    val_P1 = data.table(Obs = dt.train$var, sim = pred_P1$predictions)
-    val_P1$residuals = val_P1$Obs - val_P1$sim
-    dt.train_resi = cbind(residuals = val_P1$residuals, dt.train[, setdiff(names(dt.train), "var"), with = FALSE])
+    pred_P1 = predict(Model_P1, dt.train[, setdiff(names(dt.train), c("ID", "var")), with = FALSE], na.rm = TRUE)
+    # val_P1 = cbind(ID = dt.train$ID, Obs = dt.train$var, sim = pred_P1)
+    val_P1 = data.table(ID = dt.train$ID,
+                        Obs = dt.train$var, sim = pred_P1)
 
-    # Search for the best mtry for the residuals
-    set.seed(seed)
-    Hyper_P2 = suppressWarnings(
-      randomForest::tuneRF(
-        x = dt.train_resi[, setdiff(names(dt.train_resi), "residuals"), with = FALSE],
-        y = dt.train_resi$residuals,
-        ntreeTry = 2000,
-        stepFactor = 1,
-        doBest = T,
-        plot = F,
-        seed = seed,
-        trace = 0
-      )
-    )
+    val_P1[, residuals := Obs - sim]
+    dt.train_resi = cbind(residuals = val_P1$residuals, dt.train[, setdiff(names(dt.train), c("ID", "var")), with = FALSE])
 
-    # Model 2 (Residuals)
-    Model_P2 = ranger::ranger(
+    # Train Model 2
+    Model_P2 = suppressWarnings(randomForest::randomForest(
       formula = residuals ~ .,
       data = dt.train_resi,
-      num.trees = ntree,
-      seed = seed,
-      mtry = Hyper_P2$mtry
+      ntree = ntree,
+      na.action = stats::na.omit
+    )
     )
 
-    # Predictions using the two models
+    # Create the corrected model 1
     cov_Sat = terra::rast(day_COV)
-    data_SatTrain = terra::as.data.frame(cov_Sat, xy = TRUE, cells = FALSE, na.rm = FALSE)
-    data_SatTrain = as.data.table(data_SatTrain)
-    cords = data_SatTrain[, .(x, y)]
-    data_SatTrain = data_SatTrain[, setdiff(names(data_SatTrain), c("x", "y", "ID")), with = FALSE]
+    pred_1 = predict(object = cov_Sat, model = Model_P1, na.rm = TRUE, fun = predict)
+    pred_2 = predict(object = cov_Sat, model = Model_P2, na.rm = TRUE, fun = predict)
+    Ensamble = pred_1 + pred_2
 
-    pred_1 = predict(Model_P1, data_SatTrain)
-    pred_2 = predict(Model_P2, data_SatTrain)
-    Phase_1_2 = pred_1$predictions + pred_2$predictions
-
-    if (!is.null(n_round)) Phase_1_2 = round(Phase_1_2, n_round)
-    if (!is.null(threshold))  Phase_1_2 = ifelse(Phase_1_2 < threshold, 0, Phase_1_2)
-
-    Phase_1_2 = cbind(cords[, c("x", "y")], Sim = Phase_1_2)
-    ############################################################################
-    #                         Phase 3 (Model of QRF)                           #
-    ############################################################################
-    # Model QRF
-    set.seed(seed)
-    model_QRF = ranger::ranger(
-      formula = var ~ .,
-      data = dt.train,
-      num.trees = ntree,
-      seed = seed,
-      quantreg = TRUE
-    )
-
-    pred_completas = predict(model_QRF, data_SatTrain, type = "quantiles", quantiles = c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9), na.action = na.omit, seed = seed)
-    pred_completas = cbind(cords[, c("x", "y")], pred_completas$predictions)
-    names(pred_completas) = c("x", "y","Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9")
-
-    # Merge Phase 1 and 2 with QRF
-    final_model = merge(Phase_1_2, pred_completas, by = c("x", "y"))
-    final_model$mean = rowMeans(final_model[, c("Q5", "Q8","Q9", "Sim")], na.rm = TRUE)
-    final_model = final_model[,.(x, y, mean)]
-
-    # Ensamble of the models
-    Ensamble = terra::rast(data.frame(
-      x = final_model$x,
-      y = final_model$y,
-      value = final_model$mean
-    ), crs = terra::crs(Sample_lyrs))
-
+    # Extra operations in case they have been established
+    if (!is.null(n_round)) Ensamble = terra::app(Ensamble, function(x) round(x, n_round))
+    if (wet.day) Ensamble = terra::app(Ensamble, function(x) ifelse(x < wet.day, 0, x))
     return(Ensamble)
   }
 
-  # Execute analysis
   pbapply::pboptions(type = "timer", use_lb = T, style = 1, char = " ")
-  message("Analysis in progress. Please wait....")
+  message("Analysis in progress: Stage 1 of 2. Please wait...")
 
   raster_Model = pbapply::pbsapply(Dates_extracted, function(fecha) {
     day_COV = lapply(Covariates, function(x) x[[which(Dates_extracted == fecha)]])
@@ -267,6 +235,105 @@ RFplus = function(Covariates, BD_Insitu, Cords_Insitu, ntree = 2000, threshold =
 
   Ensamble = terra::rast(raster_Model)
 
+  # Model of the QM or QDM correction ------------------------------------------
+  if (method == "none") {
+    message("Analysis completed, QUANT or RQUANT correction phase not applied.")
+  } else if (method %in% c("RQUANT","QUANT")) {
+    message(paste0("Analysis in progress: Stage 2 of 2. Correction by: ", method, ". Please wait..."))
+
+    data_CM = terra::extract(Ensamble, Points_VectTrain)
+    names_train = data_train %>%
+      dplyr::select(ID, Cod) %>%
+      dplyr::distinct() %>%
+      data.table::data.table()
+
+    data_CM$ID = names_train$Cod[match(data_CM$ID, names_train$ID)]
+    data_CM = na.omit(data_CM)
+    names = as.character(data_CM$ID)
+
+    data_CM = data.table(t(data_CM[, -1]))
+    colnames(data_CM) = names
+    data_CM = cbind(Date = BD_Insitu[, Date], data_CM)
+
+    common_columns = dplyr::intersect(colnames(data_CM), colnames(BD_Insitu))
+    common_columns = dplyr::setdiff(common_columns, "Date")
+
+    res_interpolation = lapply(common_columns, function(col) {
+      data_obs = BD_Insitu[, .(Date, Obs = get(col))]
+      data_sim = data_CM[, .(Date, Sim = get(col))]
+      merge(data_obs, data_sim, by = "Date")
+    })
+
+    names(res_interpolation) = common_columns
+    res_interpolation = lapply(res_interpolation, function(x) na.omit(x))
+
+    data_complete = data.table(terra::as.data.frame(Ensamble, xy = TRUE))
+    colnames(data_complete) = c("x", "y", as.character(Dates_extracted))
+
+    points =Cords_Insitu[Cod %chin% names, ]
+    points = terra::vect(points, geom = c("X", "Y"), crs = crs(Sample_lyrs))
+    dat_final = data.table()
+
+    if (method == "QUANT") {
+      cuantiles = lapply(res_interpolation, function(x) fitQmapQUANT(x$Obs, x$Sim, method = method, wet.day = wet.day))
+      for (i in 1:nrow(data_complete)) {
+        x = data_complete[i, x]
+        y = data_complete[i, y]
+
+        distances = terra::distance(terra::vect(data.table(cbind(x = x,y = y)), geom = c("x", "y"), crs = crs(Sample_lyrs)),
+                                    points,
+                                    unit = "km")
+
+        distances = data.table(t(distances))
+        distances = cbind(distances, Cod = points$Cod)
+        names(distances) = c("dist", "Cod")
+
+        if (any(distances$dist <= ratio)){
+          inds = base::which.min(distances$dist)
+          name = distances[inds, .(Cod)]
+
+          data = data.table(Sim = t(data_complete[i, -c("x", "y")]))
+          data_corregido = doQmapQUANT(data$Sim.V1, cuantiles[[name$Cod]])
+          data_sat = cbind(data_complete[i, c("x", "y")], t(data_corregido))
+          colnames(data_sat) = c("x", "y", as.character(Dates_extracted))
+          dat_final = rbind(dat_final, data_sat)
+        } else {
+          dat_final = rbind(dat_final, data_complete[i, ])
+        }
+      }
+    } else {
+      cuantiles = lapply(res_interpolation, function(x) fitQmapRQUANT(x$Obs, x$Sim, method = method))
+      for (i in 1:nrow(data_complete)) {
+        x = data_complete[i, x]
+        y = data_complete[i, y]
+
+        distances = terra::distance(terra::vect(data.table(cbind(x = x,y = y)), geom = c("x", "y"), crs = crs(Sample_lyrs)),
+                                    points,
+                                    unit = "km")
+
+        distances = data.table(t(distances))
+        distances = cbind(distances, Cod = points$Cod)
+        names(distances) = c("dist", "Cod")
+
+        if (any(distances$dist <= ratio)){
+          inds = base::which.min(distances$dist)
+          name = distances[inds, .(Cod)]
+
+          data = data.table(Sim = t(data_complete[i, -c("x", "y")]))
+          data_corregido = doQmapRQUANT(data$Sim.V1, cuantiles[[name$Cod]])
+          data_sat = cbind(data_complete[i, c("x", "y")], t(data_corregido))
+          colnames(data_sat) = c("x", "y", as.character(Dates_extracted))
+          dat_final = rbind(dat_final, data_sat)
+        } else {
+          dat_final = rbind(dat_final, data_complete[i, ])
+        }
+      }
+    }
+    Ensamble = terra::rast(dat_final, crs = crs(Sample_lyrs))
+
+  }
+
+  message("Analysis completed.")
   ##############################################################################
   #                           Save the model if necessary                      #
   ##############################################################################
