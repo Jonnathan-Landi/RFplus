@@ -2,70 +2,89 @@
 % Please edit documentation in R/RFplus.R
 \name{RFplus}
 \alias{RFplus}
-\title{RFplus: Bias Correction of Satellite Products Using Random Forest and Quantile Regression Forests}
+\alias{RFplus.default}
+\alias{RFplus.data.table}
+\title{Bias Correction of Satellite Products Using Hybrid Random Forest and Quantile Mapping}
 \usage{
-RFplus(
-  Covariates,
+RFplus(BD_Insitu, ...)
+
+\method{RFplus}{default}(
   BD_Insitu,
   Cords_Insitu,
-  ntree = 2000,
-  threshold = NULL,
+  Covariates,
   n_round = NULL,
-  save_model = F,
+  wet.day = FALSE,
+  ntree = 2000,
+  seed = 123,
+  method = c("RQUANT", "QUANT", "none"),
+  ratio = 15,
+  save_model = FALSE,
   name_save = NULL,
-  seed = 123
+  ...
+)
+
+\method{RFplus}{data.table}(
+  BD_Insitu,
+  Cords_Insitu,
+  Covariates,
+  n_round = NULL,
+  wet.day = FALSE,
+  ntree = 2000,
+  seed = 123,
+  method = c("RQUANT", "QUANT", "none"),
+  ratio = 15,
+  save_model = FALSE,
+  name_save = NULL
 )
 }
 \arguments{
-\item{Covariates}{A list of `terra::SpatRaster` objects representing predictive features, including:
-- Satellite-derived data layers
+\item{BD_Insitu}{A `data.table` with in-situ measurements containing:
+- `Date`: Date of measurements (Date format)
+- Columns with observed values (numeric)}
+
+\item{...}{Additional arguments passed to methods}
+
+\item{Cords_Insitu}{A `data.table` with station coordinates:
+- `Cod`: Station ID (matching `BD_Insitu`)
+- `X`: Longitude
+- `Y`: Latitude}
+
+\item{Covariates}{List of `terra::SpatRaster` objects containing:
+- Satellite data layers
 - Digital Elevation Model (DEM)
-- Additional environmental covariates as needed}
+- Other environmental covariates}
 
-\item{BD_Insitu}{A `data.table` containing in-situ measurements with the following columns:
-- `Date`: Measurement dates (Date format)
-- Observed variable columns with numerical values}
+\item{n_round}{Number of decimal places for predictions (default: NULL)}
 
-\item{Cords_Insitu}{A `data.table` with station coordinates, including:
-- `Cod`: Unique station ID (matching IDs in `BD_Insitu`)
-- `X`: Longitude values
-- `Y`: Latitude values}
+\item{wet.day}{Logical threshold for wet-day correction or numeric value (see Note)}
 
-\item{ntree}{An integer specifying the number of trees for all forest models (RF, residual RF, and QRF). Default: 2000.}
+\item{ntree}{Number of trees for Random Forest (default: 2000)}
 
-\item{threshold}{A numeric value defining the lower limit for predictions. Predictions below this threshold are set to 0. Default: `NULL` (retains all values, useful for temperature predictions).}
+\item{seed}{Random seed for reproducibility (default: 123)}
 
-\item{n_round}{An integer indicating the number of decimal places for rounding final predictions. Default: `NULL` (no rounding applied).}
+\item{method}{Distribution adjustment method: "RQUANT", "QUANT", or "none" (default: "none")}
 
-\item{save_model}{A logical value indicating whether to save the final model output as a NetCDF file. Default: `FALSE`.}
+\item{ratio}{Maximum search radius (km) for nearest station adjustment (default: 15)}
 
-\item{name_save}{A character string specifying the base file name for saved outputs (without the `.nc` extension). Default: "Model_RFplus".}
+\item{save_model}{Save output as NetCDF file? (default: FALSE)}
 
-\item{seed}{An integer for setting the random seed to ensure reproducibility. Default: 123.}
-}
-\value{
-A `terra::SpatRaster` containing the bias-corrected predictions. Spatial properties match those of the input covariates.
+\item{name_save}{Base name for output file (default: "Model_RFplus")}
 }
 \description{
-RFplus applies a comprehensive bias correction approach that combines three modeling steps to enhance satellite-derived environmental data. This ensemble method includes:
-1) Initial Random Forest predictions,
-2) Residual corrections using a secondary Random Forest, and
-3) Outlier preservation through Quantile Regression Forests (QRF).
-The final predictions are calculated as a weighted average of all steps.
+Applies a three-step bias correction combining Random Forest predictions, residual correction,
+and distribution adjustment using quantile mapping methods.
 }
 \details{
-The RFplus methodology operates in three stages:
-- **Base Prediction**: A Random Forest model generates predictions based on satellite data and environmental covariates.
-- **Residual Correction**: A second Random Forest model corrects residual errors from the base predictions.
-- **Outlier Adjustment**: A Quantile Regression Forest computes prediction quantiles (Q5, Q8, Q9) to preserve distribution tails.
+`RFplus` implements a hybrid approach:
+1. **Base Prediction**: Initial Random Forest model using satellite data and covariates.
+2. **Residual Correction**: Secondary Random Forest to correct residuals from step 1.
+3. **Distribution Adjustment**: Quantile mapping (QUANT/RQUANT) to match observed distribution.
 
-Final predictions are calculated as:
-\deqn{(Q5 + Q8 + Q9 + (adjusted prediction - residuals prediction) / 4}
-This formulation balances overall accuracy while maintaining outliers.
+The final prediction combines all three steps, preserving outliers while reducing bias.
 }
 \note{
-This approach ensures outliers are preserved while reducing overall bias. The QRF component specifically enhances the preservation of distribution tails through its quantile-based estimates.
-}
-\author{
-Jonnathan Augusto Landi Bermeo
+The `wet.day` parameter can be:
+- `FALSE`: No wet-day correction
+- `TRUE`: Apply correction with default threshold (0.1 mm)
+- Numeric value: Custom threshold
 }
