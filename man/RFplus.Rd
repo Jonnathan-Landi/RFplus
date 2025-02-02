@@ -6,7 +6,7 @@
 \alias{RFplus.data.table}
 \title{Bias Correction of Satellite Products Using Hybrid Random Forest and Quantile Mapping}
 \usage{
-RFplus(BD_Insitu, ...)
+RFplus(BD_Insitu, Cords_Insitu, Covariates, ...)
 
 \method{RFplus}{default}(
   BD_Insitu,
@@ -34,57 +34,90 @@ RFplus(BD_Insitu, ...)
   method = c("RQUANT", "QUANT", "none"),
   ratio = 15,
   save_model = FALSE,
-  name_save = NULL
+  name_save = NULL,
+  ...
 )
 }
 \arguments{
-\item{BD_Insitu}{A `data.table` with in-situ measurements containing:
-- `Date`: Date of measurements (Date format)
-- Columns with observed values (numeric)}
+\item{BD_Insitu}{`data.table` containing the ground truth measurements (dependent variable) used to train the RFplus model.
+Each column represents a ground station, and station identifiers are stored as column names. The class of `BD_Insitu`
+must be `data.table`. Each row represents a time step with measurements of the corresponding station.}
 
-\item{...}{Additional arguments passed to methods}
+\item{Cords_Insitu}{`data.table` containing metadata for the ground stations. Must include the following columns:
+- `Cod`: Unique identifier for each ground station.
+- `X`: Latitude of the station in UTM format.
+- `Y`: Longitude of the station in UTM format.}
 
-\item{Cords_Insitu}{A `data.table` with station coordinates:
-- `Cod`: Station ID (matching `BD_Insitu`)
-- `X`: Longitude
-- `Y`: Latitude}
+\item{Covariates}{A list of covariates used as independent variables in the RFplus model. Each covariate should be a
+`SpatRaster` object (from the `terra` package) and can represent satellite-derived weather variables or a Digital
+ Elevation Model (DEM). All covariates should have the same number of layers (bands), except for the DEM, which must have only one layer.}
 
-\item{Covariates}{List of `terra::SpatRaster` objects containing:
-- Satellite data layers
-- Digital Elevation Model (DEM)
-- Other environmental covariates}
+\item{...}{Additional arguments to pass to the underlying methods (e.g., for model tuning or future extensions).}
 
-\item{n_round}{Number of decimal places for predictions (default: NULL)}
+\item{n_round}{Numeric indicating the number of decimal places to round the corrected values. If `n_round` is set to `NULL`, no rounding is applied.}
 
-\item{wet.day}{Logical threshold for wet-day correction or numeric value (see Note)}
+\item{wet.day}{Numeric value indicating the threshold for wet day correction. Values below this threshold will be set to zero.
+- `wet.day = FALSE`: No correction is applied (default).
+- For wet day correction, provide a numeric threshold (e.g., `wet.day = 0.1`).}
 
-\item{ntree}{Number of trees for Random Forest (default: 2000)}
+\item{ntree}{Numeric indicating the maximum number trees to grow in the Random Forest algorithm. The default value is set to 2000. This should not be set to too small a number, to ensure that every input row gets predicted at least a few times. If this value is too low, the prediction may be biased.}
 
-\item{seed}{Random seed for reproducibility (default: 123)}
+\item{seed}{Integer for setting the random seed to ensure reproducibility of results (default: 123).}
 
-\item{method}{Distribution adjustment method: "RQUANT", "QUANT", or "none" (default: "none")}
+\item{method}{A character string specifying the quantile mapping method used for distribution adjustment. Options are:
+- `"RQUANT"`: Robust quantile mapping to adjust satellite data distribution to observed data.
+- `"QUANT"`: Standard quantile mapping.
+- `"none"`: No distribution adjustment is applied. Only Random Forest-based bias correction and residual correction are performed.}
 
-\item{ratio}{Maximum search radius (km) for nearest station adjustment (default: 15)}
+\item{ratio}{integer Maximum search radius (in kilometers) for the quantile mapping setting using the nearest station. (default = 15 km)}
 
-\item{save_model}{Save output as NetCDF file? (default: FALSE)}
+\item{save_model}{Logical value indicating whether the corrected raster layers should be saved to disk. The default is `FALSE`.
+If set to `TRUE`, make sure to set the working directory beforehand using `setwd(path)` to specify where the files should be saved.}
 
-\item{name_save}{Base name for output file (default: "Model_RFplus")}
+\item{name_save}{Character string. Base name for output file (default: NULL). The output file will be saved as "Model_RFplus.nc".
+If you set a different name, make sure you do not set the ".nc" format,
+as the code will internally assign it.}
+}
+\value{
+Returns a `SpatRaster` object containing the bias-corrected layers for each time step. The number of layers
+  corresponds to the number of dates for which the correction is applied. The output raster contains the corrected
+  satellite data adjusted for bias
 }
 \description{
-Applies a three-step bias correction combining Random Forest predictions, residual correction,
-and distribution adjustment using quantile mapping methods.
+Applies a hybrid three-step bias correction approach combining Random Forest predictions, residual correction,
+and distribution adjustment using quantile mapping methods to correct biases in satellite-derived environmental data.
 }
 \details{
-`RFplus` implements a hybrid approach:
-1. **Base Prediction**: Initial Random Forest model using satellite data and covariates.
-2. **Residual Correction**: Secondary Random Forest to correct residuals from step 1.
-3. **Distribution Adjustment**: Quantile mapping (QUANT/RQUANT) to match observed distribution.
+The `RFplus` method implements a three-step approach:
+1. **Base Prediction**: Random Forest model is trained using satellite data and covariates.
+2. **Residual Correction**: A second Random Forest model is used to correct the residuals from the base prediction.
+3. **Distribution Adjustment**: Quantile mapping (QUANT or RQUANT) is applied to adjust the distribution of satellite data to match the observed data distribution.
 
-The final prediction combines all three steps, preserving outliers while reducing bias.
+The final result combines all three steps, correcting the biases while preserving the outliers, and improving the accuracy of satellite-derived data such as precipitation and temperature.
 }
-\note{
-The `wet.day` parameter can be:
-- `FALSE`: No wet-day correction
-- `TRUE`: Apply correction with default threshold (0.1 mm)
-- Numeric value: Custom threshold
+\examples{
+\dontrun{
+# Load the libraries
+library(terra)
+libray(data.table)
+
+# Load the data
+BD_Insitu <- data(BD_Insitu)
+Cords_Insitu <- data(Cords_Insitu)
+
+Covariates <- list(
+ MSWEP = terra::rast(system.file("extdata/MSWEP.nc", package = "RFplus")),
+ CHIRPS = terra::rast(system.file("extdata/CHIRPS.nc", package = "RFplus")),
+ DEM = terra::rast(system.file("extdata/DEM.nc", package = "RFplus"))
+ )
+
+ # Apply the RFplus bias correction model
+ RFplus(BD_Insitu, Cords_Insitu, Covariates, n_round = 1, wet.day = 0.1,
+      ntree = 2000, seed = 123, method = "QUANT", ratio = 15,
+      save_model = FALSE, name_save = NULL)
+      }
+
+}
+\author{
+Jonnathan Augusto landi Bermeo, jonnathan.landi@outlook,com
 }
