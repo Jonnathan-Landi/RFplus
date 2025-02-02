@@ -1,18 +1,22 @@
 Package: RFplus
 Type: Package
-Title: Progressive Bias Adjustment: A Hybrid Random Forest and Quantile Mapping Approach to Improve Spatiotemporal Satellite Rainfall Accuracy
-Version: 1.2.0
+Title: Progressive Bias Correction of Satellite Environmental Data
+Version: 1.2-0
 Encoding: UTF-8
 Author: Jonnathan Augusto Landi Bermeo [aut, cre, cph] (<https://orcid.org/0009-0003-3162-6647>)
 Authors@R: c(person("Jonnathan Augusto Landi Bermeo", email = "jonnathan.landi@outlook.com", role=c("aut", "cre", "cph"), comment=c(ORCID = "0009-0003-3162-6647")))
 Maintainer: Jonnathan Augusto Landi Bermeo <jonnathan.landi@outlook.com>
-Description: his package applies a Random Forest-based bias correction method to satellite-derived environmental data, such as precipitation, temperature, and other relevant meteorological or environmental variables. The model corrects biases in these satellite products by incorporating in-situ measurements and environmental covariates, including the Digital Elevation Model (DEM).
+Description: Implements a bias correction method that combines Random Forest models with quantile mapping to improve the accuracy of satellite-derived environmental datasets. The model corrects biases in variables such as precipitation and temperature by incorporating in situ measurements and environmental covariates, including digital elevation models.
 License: GPL (>=3)
 Depends: R (>= 4.4.0)
 Imports: terra, randomForest, data.table, dplyr, pbapply, qmap
 URL: https://github.com/Jonnathan-Landi/RFplus
-LazyLoad: yes
+BugReports: https://github.com/Jonnathan-Landi/RFplus/issues
+NeedsCompilation: no
 RoxygenNote: 7.3.2
 Suggests: 
+    knitr,
+    rmarkdown,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
+VignetteBuilder: knitr
