@@ -1,6 +1,6 @@
 importFrom("terra", "crs", "ext", "nlyr", "rast", "vect", "distance", "extract", "predict", "writeRaster", "as.data.frame")
 importFrom("data.table", "%chin%", "setDT", "setorder", "data.table", ":=", "melt")
-importFrom("dplyr", "%>%", "setdiff", "select", "distinct", "intersect")
+importFrom("dplyr", "%>%", "setdiff", "select", "distinct", "intersect", "inner_join")
 importFrom("pbapply", "pbsapply", "pboptions")
 importFrom("qmap", "fitQmapQUANT", "fitQmapRQUANT", "doQmapRQUANT", "doQmapQUANT")
 importFrom("randomForest", "randomForest")
