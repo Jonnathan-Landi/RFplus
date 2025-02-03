@@ -45,51 +45,48 @@ DEM = terra::rast(system.file("extdata/DEM.nc", package = "RFplus"))
 ## Prepare covariates
 
 ```{r}
-# Verify the extension and the reference coordinate system of the covariates.
-# extension
-terra::ext(MSWEP)
-terra::ext(CHIRPS)
-terra::ext(DEM)
-
-# reference coordinate system
-terra::crs(MSWEP)
-terra::crs(CHIRPS)
-terra::crs(DEM)
-
 # Adjust individual covariates to the covariate format required by RFplus
 Covariates_list = list(MSWEP = MSWEP, CHIRPS = CHIRPS, DEM = DEM)
+
+# Verify the extension and the reference coordinate system of the covariates.
+# extension
+geom_check = sapply(Covariates_list[-1], function(r) terra::compareGeom(Covariates_list[[1]], r))
+
+if (!all(geom_check)) {
+  stop("Error: The spatial geometry of the covariates does not match.")
+}
+
+# reference coordinate system
+crs_list = list(terra::crs(MSWEP), terra::crs(CHIRPS), terra::crs(DEM))
+
+if (!all(sapply(crs_list, function(x) identical(x, crs_list[[1]])))) {
+  stop("Error: The coordinate reference system (CRS) of the covariates does not match.")
+}
+
+
 ```
 
 ## Apply the RFplus bias correction model
 
 ```{r}
-# Apply the RFplus bias correction model using Non-parametric quantile mapping using empirical quantiles (method = "QUANT")
-model_Quant = RFplus(BD_Insitu = BD_Insitu, Cords_Insitu = Cords_Insitu, Covariates = Covariates_list, n_round = 1, wet.day = 0.1,
-       ntree = 2000, seed = 123, method = "QUANT", ratio = 15,
-       save_model = FALSE, name_save = NULL)
+# Apply the RFplus bias correction model (example using "QUANT" method)
+model_example = RFplus(
+  BD_Insitu = BD_Insitu, Cords_Insitu = Cords_Insitu, Covariates = Covariates_list, 
+  n_round = 1, wet.day = 0.1, ntree = 2000, seed = 123, method = "QUANT", 
+  ratio = 15, save_model = FALSE, name_save = NULL
+)
 
-# Apply the RFplus bias correction model using Non-parametric quantile mapping using robust empirical quantiles. (method = "RQUANT") 
-model_RQuant = RFplus(BD_Insitu = BD_Insitu, Cords_Insitu = Cords_Insitu, Covariates = Covariates_list, n_round = 1, wet.day = 0.1,
-       ntree = 2000, seed = 123, method = "RQUANT", ratio = 15,
-       save_model = FALSE, name_save = NULL)
+# Other methods such as "RQUANT" and "none" can be used by changing the 'method' argument.
 
-# If you do not want to perform the quantile mapping adjustment use the method = "none"
-model_none = RFplus(BD_Insitu = BD_Insitu, Cords_Insitu = Cords_Insitu, Covariates = Covariates_list, n_round = 1, wet.day = 0.1,
-       ntree = 2000, seed = 123, method = "none", ratio = 15,
-       save_model = FALSE, name_save = NULL)
 ```
 
 ## Example of how to visualize the result
 
 ```{r}
 # First layer of the QUANT method
-plot(model_Quant[[1]])
+plot(model_example[[1]])
 
-# First layer of the RQUANT method
-plot(model_RQuant[[1]])
 
-# First layer of the none method
-plot(model_none[[1]])
 
 ```
 
