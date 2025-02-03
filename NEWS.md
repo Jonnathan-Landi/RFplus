@@ -1,3 +1,11 @@
+# Version 1.2-1 (release)
+
+### New Features
+
+-   The word quantile mapping was changed to Quantile Mapping due to CRAN's comment of “ Words possibly misspelled in DESCRIPTION”.
+
+-   A test optimization was performed to address the problem of “the error Executing ‘testthat.R’ [421s/114s] the execution of the R code in ‘testthat.R’ had a CPU time 3.7 times higher than the elapsed time” reported by CRAN.
+
 # Version 1.2-0 (release)
 
 ### New Features
