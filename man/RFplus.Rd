@@ -16,6 +16,8 @@ RFplus(BD_Insitu, Cords_Insitu, Covariates, ...)
   wet.day = FALSE,
   ntree = 2000,
   seed = 123,
+  training = 1,
+  Rain_threshold = 0.1,
   method = c("RQUANT", "QUANT", "none"),
   ratio = 15,
   save_model = FALSE,
@@ -31,6 +33,8 @@ RFplus(BD_Insitu, Cords_Insitu, Covariates, ...)
   wet.day = FALSE,
   ntree = 2000,
   seed = 123,
+  training = 1,
+  Rain_threshold = 0.1,
   method = c("RQUANT", "QUANT", "none"),
   ratio = 15,
   save_model = FALSE,
@@ -64,6 +68,16 @@ must be `data.table`. Each row represents a time step with measurements of the c
 
 \item{seed}{Integer for setting the random seed to ensure reproducibility of results (default: 123).}
 
+\item{training}{Numerical value between 0 and 1 indicating the proportion of data used for model training. The remaining data are used for validation. Note that if you enter, for example, 0.8 it means that 80 % of the data will be used for training and 20 % for validation.
+If you do not want to perform validation, set training = 1. (Default training = 1).}
+
+\item{Rain_threshold}{Numeric value that defines the precipitation threshold for classifying rainfall events.
+Precipitation values above this threshold will be considered as rainfall events, while values below it will be considered as no-rain events.
+This parameter is used to calculate key performance metrics such as the Probability of Detection (POD), False Alarm Rate (FAR), and Critical Success Index (CSI),
+which help assess the accuracy of rainfall event predictions.
+Note: This parameter should only be set when `training` is not equal to 1, as it is needed to calculate the POD, FAR, and CSI metrics.
+The default value for this parameter is 0.1.}
+
 \item{method}{A character string specifying the quantile mapping method used for distribution adjustment. Options are:
 - `"RQUANT"`: Robust quantile mapping to adjust satellite data distribution to observed data.
 - `"QUANT"`: Standard quantile mapping.
@@ -79,9 +93,11 @@ If you set a different name, make sure you do not set the ".nc" format,
 as the code will internally assign it.}
 }
 \value{
-Returns a `SpatRaster` object containing the bias-corrected layers for each time step. The number of layers
-  corresponds to the number of dates for which the correction is applied. The output raster contains the corrected
-  satellite data adjusted for bias
+Returns a list containing two elements:
+  \item{Ensamble}{A `SpatRaster` object containing the bias-corrected layers for each time step. The number of layers
+  corresponds to the number of dates for which the correction is applied. This represents the corrected satellite data adjusted for bias.}
+  \item{Validation}{A data frame or similar object containing the statistical results obtained from the validation process.
+  These statistics assess the performance of the bias correction applied to the satellite data.}.
 }
 \description{
 Applies a hybrid three-step bias correction approach combining Random Forest predictions, residual correction,
@@ -96,15 +112,20 @@ The `RFplus` method implements a three-step approach:
 The final result combines all three steps, correcting the biases while preserving the outliers, and improving the accuracy of satellite-derived data such as precipitation and temperature.
 }
 \examples{
-\dontrun{
+\donttest{
 # Load the libraries
 library(terra)
-libray(data.table)
+library(data.table)
 
 # Load the data
-BD_Insitu <- data(BD_Insitu)
-Cords_Insitu <- data(Cords_Insitu)
+ data("BD_Insitu", package = "RFplus")
+ data("Cords_Insitu", package = "RFplus")
 
+# Convert to data.table
+setDT(BD_Insitu)
+setDT(Cords_Insitu)
+
+# Load the covariates
 Covariates <- list(
  MSWEP = terra::rast(system.file("extdata/MSWEP.nc", package = "RFplus")),
  CHIRPS = terra::rast(system.file("extdata/CHIRPS.nc", package = "RFplus")),
@@ -113,11 +134,11 @@ Covariates <- list(
 
  # Apply the RFplus bias correction model
  RFplus(BD_Insitu, Cords_Insitu, Covariates, n_round = 1, wet.day = 0.1,
-      ntree = 2000, seed = 123, method = "QUANT", ratio = 15,
-      save_model = FALSE, name_save = NULL)
-      }
+      ntree = 2000, seed = 123, training = 1, Rain_threshold = 0.1,
+      method = "QUANT", ratio = 15, save_model = FALSE, name_save = NULL)
+}
 
 }
 \author{
-Jonnathan Augusto landi Bermeo, jonnathan.landi@outlook,com
+Jonnathan Augusto landi Bermeo, jonnathan.landi@outlook.com
 }
