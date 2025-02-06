@@ -11,9 +11,10 @@ test_that("RFplus works with different methods and included data", {
 
   # # Test with "QUANT" method
   result_quant = RFplus(BD_Insitu, Cords_Insitu, Covariates, n_round = 1, wet.day = 0.1,
-                        ntree = 2000, seed = 123, method = "QUANT", ratio = 15,
-                        save_model = FALSE, name_save = NULL)
+                        ntree = 2000, seed = 123, training = 1, Rain_threshold = 0.1,
+                        method = "QUANT", ratio = 15, save_model = FALSE, name_save = NULL)
 
-  expect_true(inherits(result_quant, "SpatRaster"))
-  expect_true(all(terra::values(result_quant, na.rm = T) >= 0))
+  expect_true(inherits(result_quant, "list"))
+  expect_true(inherits(result_quant$Ensamble, "SpatRaster"))
+  expect_true(all(terra::values(result_quant$Ensamble, na.rm = T) >= 0))
 })
