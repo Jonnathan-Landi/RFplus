@@ -1,0 +1,95 @@
+---
+title: "Progressive Bias Correction of Satellite Environmental Data using RFplus"
+author: "Jonnathan Augusto Landi Bermeo"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Progressive Bias Correction of Satellite Environmental Data using RFplus}
+  %\VignetteEngine{knitr::rmarkdown}
+---
+
+# Introduction
+
+The **RFplus** package applies a hybrid bias correction technique that combines Random Forest (RF) and Quantile Mapping (QM) methods to adjust satellite data, such as precipitation, to match in-situ observations. The correction process is carried out in three distinct steps:
+
+1.  **Base Prediction**: A Random Forest model is trained using satellite data and additional covariates to predict the bias between satellite estimates and in-situ observations.
+2.  **Residual Correction**: A second Random Forest model is then used to correct the residuals from the base prediction, further improving the accuracy of the satellite data.
+3.  **Distribution Adjustment**: Quantile mapping (either QUANT or RQUANT) is applied to adjust the distribution of satellite data, aligning it with the observed data distribution. This step ensures that the corrected satellite data not only matches the mean but also the distribution, improving the representation of extreme values, such as heavy precipitation.
+
+In **RFplus**, the Quantile Mapping method is applied locally, based on a user-defined search radius around the in-situ stations. This means that the distribution of the satellite data for each pixel is adjusted using the nearby in-situ measurements, ensuring that the correction is geographically relevant and reflects local conditions.
+
+Although **RFplus** was initially designed for bias correction of satellite precipitation products, it is flexible enough to be adapted for use with other satellite data sources (e.g., bias correction of satellite products for temperature, wind speed, etc.), making it a versatile tool for bias correction in remote sensing applications.
+
+## Example using RFplus
+
+```{r}
+# Load necessary libraries
+library(RFplus)
+library(terra)
+library(data.table)
+```
+
+## Load the example datasets
+
+```{r}
+# Load the in-situ data and the coordinates
+data("BD_Insitu")
+data("Cords_Insitu")
+
+# Load the covariates
+MSWEP = terra::rast(system.file("extdata/MSWEP.nc", package = "RFplus"))
+CHIRPS = terra::rast(system.file("extdata/CHIRPS.nc", package = "RFplus"))
+DEM = terra::rast(system.file("extdata/DEM.nc", package = "RFplus"))
+
+```
+
+## Prepare covariates
+
+```{r}
+# Adjust individual covariates to the covariate format required by RFplus
+Covariates_list = list(MSWEP = MSWEP, CHIRPS = CHIRPS, DEM = DEM)
+
+# Verify the extension and the reference coordinate system of the covariates.
+# extension
+geom_check = sapply(Covariates_list[-1], function(r) terra::compareGeom(Covariates_list[[1]], r))
+
+if (!all(geom_check)) {
+  stop("Error: The spatial geometry of the covariates does not match.")
+}
+
+# reference coordinate system
+crs_list = list(terra::crs(MSWEP), terra::crs(CHIRPS), terra::crs(DEM))
+
+if (!all(sapply(crs_list, function(x) identical(x, crs_list[[1]])))) {
+  stop("Error: The coordinate reference system (CRS) of the covariates does not match.")
+}
+
+
+```
+
+## Apply the RFplus bias correction model
+
+```{r}
+# Apply the RFplus bias correction model (example using "QUANT" method)
+model_example = RFplus(
+  BD_Insitu = BD_Insitu, Cords_Insitu = Cords_Insitu, Covariates = Covariates_list, 
+  n_round = 1, wet.day = 0.1, ntree = 2000, seed = 123, method = "QUANT", 
+  ratio = 15, save_model = FALSE, name_save = NULL
+)
+
+# Other methods such as "RQUANT" and "none" can be used by changing the 'method' argument.
+
+```
+
+## Example of how to visualize the result
+
+```{r}
+# First layer of the QUANT method
+plot(model_example[[1]])
+
+
+
+```
+
+## Conclusion
+
+The RFplus method improves satellite-based precipitation estimates by correcting biases using both machine learning (Random Forest) and statistical distribution adjustment (Quantile Mapping). By applying these corrections, RFplus ensures that satellite data not only aligns with observed data in terms of mean values but also in terms of the underlying distribution, which is particularly useful for accurately capturing extreme weather events such as heavy precipitation. The flexibility of RFplus allows its application to a wide range of satellite data products beyond precipitation, including temperature and wind speed, making it a versatile tool for bias correction in remote sensing applications.
