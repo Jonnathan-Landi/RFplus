@@ -1,4 +1,27 @@
-# Version 1.2-1 (release)
+# Version 1.3-0 (CRAN)
+
+### New Features
+
+-   Removed dependency on 'dplyr' and migrated all code to 'data.table' to ensure efficiency and speed for large data sets.
+
+-   Added functionality to apply point-to-pixel validation. The metrics analyzed are: Pearson correlation coefficient (CC), root mean square error (RMSE), modified Kling-Gupta efficiency (KGE), relative bias (PBIAS), probability of detection (POD), false alarm rate (FAR), critical success index (CSI).
+
+-   A complete refactoring of the code has been carried out to improve its efficiency and ease of maintenance.
+
+### Bug Fixed
+
+-   Fixed a bug in 'wet.day' when set to False, rounding was still performed.
+-   Fixed 'pboptions' slash bug that caused a new slash to be created at each iteration when setting char = “=”.
+
+# Version 1.2-2 (release-CRAN)
+
+### New Features
+
+-   We modified the description of the package to meet the corrections suggested by CRAN.
+
+-   Replaced by \dontrun with \donttest. due to the time of execution of the example. (\> 5 seconds)
+
+# Version 1.2-1 (release-CRAN)
 
 ### New Features
 
