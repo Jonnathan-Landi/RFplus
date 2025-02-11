@@ -198,28 +198,48 @@ RFplus.data.table <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NUL
       PBIAS = round(hydroGOF::pbias(data$Sim, data$Obs, na.rm = T),3)
 
       # Calculations for other metrics
-      data = na.omit(data)     # Create the confusion matrix
-      data$Obs_bin <- ifelse(data$Obs > Rain_threshold, 1, 0)
-      data$Sim_bin <- ifelse(data$Sim > Rain_threshold, 1, 0)
-      conf_matrix <- table(data$Obs_bin, data$Sim_bin)
+      data = na.omit(data)
+      observed_fac = factor(ifelse(data$Obs > Rain_threshold, 1, 0), levels = c(1, 0))
+      forecast_fac = factor(ifelse(data$Sim > Rain_threshold, 1, 0), levels = c(1, 0))
+      contingency_table <- table(forecast_fac, observed_fac)
 
-      H <- conf_matrix[2, 2]  # True positives
-      M <- conf_matrix[2, 1]  # False negatives
-      F <- conf_matrix[1, 2]  # False positives
+      # Extract components from the table
+      H <- contingency_table["1", "1"]  # Hits (Forecast=1, Observed=1)
+      FA <- contingency_table["1", "0"] # False alarms (Forecast=1, Observed=0)
+      M <- contingency_table["0", "1"]  # Omissions (Forecast=0, Observed=1)
+      CN <- contingency_table["0", "0"] # Negative corrections (Forecast=0, Observed=0)
+
+      # functions for calculations
+      calculate_pod <- function(H, M) {
+        if (H + M == 0) return(NA)
+        return(H / (H + M))
+      }
+
+      # Function for calculating False Alarm Rate (FAR)
+      calculate_far <- function(H, FA) {
+        if (H + FA == 0) return(NA)
+        return(FA / (H + FA))
+      }
+
+      # Function for calculating the Critical Success Index (CSI)
+      calculate_csi <- function(H, M, FA) {
+        if (H + M + FA == 0) return(NA)
+        return(H / (H + M + FA))
+      }
 
       # Metrics
-      POD = H / (H + M)
-      FAR = F / (H + F)
-      CSI = H / (H + M + F)
+      pod <- calculate_pod(H, M)
+      far <- calculate_far(H, FA)
+      csi <- calculate_csi(H, M, FA)
 
       res_metrics = data.table(
         CC = CC,
         RMSE = RMSE,
         KGE = KGE,
         PBIAS = PBIAS,
-        POD = POD,
-        FAR = FAR,
-        CSI = CSI
+        POD = pod,
+        FAR = far,
+        CSI = csi
       )
       return(res_metrics)
     }
