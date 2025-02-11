@@ -1,12 +1,27 @@
-# RFplus: Multi-Ensemble Algorithm for Reducing Satellite Precipitation Bias <img src="./inst/logos/logo_RFplus.png" align="right" width="150" />
+# **RFplus:** *Progressive Bias Correction of Satellite Environmental Data* 
+
+------------------------------------------------------------------------
+
+# <img src="./inst/logos/logo_RFplus.png" align="right" width="150"/>
+
+<!-- CRAN:Check -->
+[![R-CMD-check](https://github.com/Jonnathan-Landi/RFplus/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/Jonnathan-Landi/RFplus/actions/workflows/R-CMD-check.yaml)
+
+<!-- CRAN:Status -->
+[![CRAN status](https://www.r-pkg.org/badges/version/RFplus)](https://cran.r-project.org/package=RFplus)
+
+<!-- CRAN:Downloads -->
+[![CRAN RStudio mirror downloads](https://cranlogs.r-pkg.org/badges/RFplus)](https://www.r-pkg.org/pkg/RFplus)
+
+
 
 # Overview
-RFplus is an advanced multi-ensemble algorithm developed by Landi et al. (2025) to reduce bias in satellite precipitation products. The primary goal of RFplus is to enhance the accuracy of satellite-based precipitation estimates by leveraging in situ station data and the Random Forest algorithm. Although RFplus is currently designed for precipitation bias correction, ongoing research is investigating its potential applications for other meteorological variables, such as temperature and wind speed.
-How RFplus Works
+
+RFplus is an advanced multi-ensemble algorithm developed by Landi et al. (2025) to reduce bias in satellite precipitation products. The primary goal of RFplus is to enhance the accuracy of satellite-based precipitation estimates by leveraging in situ station data and the Random Forest algorithm. Although RFplus is currently designed for precipitation bias correction, ongoing research is investigating its potential applications for other meteorological variables, such as temperature and wind speed. How RFplus Works
 
 RFplus operates through a structured multi-step process to train and apply models for satellite data bias adjustment:
 
-1. Double Ensemble Approach
+1.  Double Ensemble Approach
 
 First Model (Model 1):
 
@@ -20,13 +35,13 @@ Trains on the residuals of Model 1, predicting the differences between observed 
 
 Aims to correct residual errors from Model 1 and minimize remaining biases.
 
-2. Quantile Mapping Correction (QDM)
+2.  Quantile Mapping Correction (QDM)
 
 Combines predictions from both models.
 
 Applies quantile mapping correction (QDM) to adjust the final distribution of predicted values using the nearest in situ stations.
 
-3. Output Generation
+3.  Output Generation
 
 Produces bias-corrected satellite precipitation maps.
 
@@ -64,20 +79,23 @@ The classes of all covariates must be consistent.
 
 If you want to test the development version, you can do it from [GitHub](https://github.com/Jonnathan-Landi/RFplus):
 
-```R
+``` r
 if (!require(devtools)) install.packages("devtools") 
 library(devtools) 
 install_github("Jonnathan-Landi/RFplus")
 ```
 
 ## Installation and Usage
+
 RFplus can be implemented in R with the following function:
-```R
+
+``` r
 RFplus = function(Covariates, BD_Insitu, Cords_Insitu, ntree = 2000, threshold = NULL,
                   n_round = NULL, save_model = FALSE, name_save = NULL, seed = 123, ratio = 15) {
   # Implementation details (refer to full documentation for function specifics).
 }
 ```
+
 Example Workflow:
 
 Preprocess your in situ data to ensure quality control.
