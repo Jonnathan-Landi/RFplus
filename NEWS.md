@@ -6,6 +6,8 @@
 
 -   Added functionality to apply point-to-pixel validation. The metrics analyzed are: Pearson correlation coefficient (CC), root mean square error (RMSE), modified Kling-Gupta efficiency (KGE), relative bias (PBIAS), probability of detection (POD), false alarm rate (FAR), critical success index (CSI).
 
+-   Removed dependencies on external libraries for FAR, POD, CSI calculations. Calculations are now performed using R base functions.
+
 -   A complete refactoring of the code has been carried out to improve its efficiency and ease of maintenance.
 
 ### Bug Fixed
