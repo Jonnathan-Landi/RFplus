@@ -1,5 +1,6 @@
-# Workflow derived from https://github.com/r-lib/actions/tree/v2/examples
-# Need help debugging build failures? Start at https://github.com/r-lib/actions#where-to-find-help
+# Workflow basado en https://github.com/r-lib/actions/tree/v2/examples
+# Ayuda en debugging: https://github.com/r-lib/actions#where-to-find-help
+
 on:
   push:
     branches: [main, master]
@@ -19,13 +20,8 @@ jobs:
       matrix:
         config:
           - {os: macos-latest,   r: 'release'}
-          - {os: macos-latest,   r: 'devel', http-user-agent: 'release'}
           - {os: windows-latest, r: 'release'}
-          - {os: windows-latest, r: 'devel', http-user-agent: 'release'}
-          - {os: ubuntu-latest,   r: 'devel', http-user-agent: 'release'}
-          - {os: ubuntu-latest,   r: 'release'}
-          - {os: ubuntu-latest,   r: 'oldrel-1'}
-
+          - {os: ubuntu-latest,  r: 'release'}
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
@@ -52,3 +48,5 @@ jobs:
         with:
           upload-snapshots: true
           build_args: c('--compact-vignettes=gs+qpdf')
+          warnings_are_errors: true  # Falla si hay warnings
+          error_on: "note"  # Falla si hay notas
