@@ -1,15 +1,11 @@
----
-bibliography: references.bib
----
 
 # **RFplus:** *Progressive Bias Correction of Satellite Environmental Data* <img align="right" width="250" src="man/figures/logo_RFplus.png">
-
-------------------------------------------------------------------------
 
 <!-- CRAN:Check -->
 
 [![R-CMD-check](https://github.com/Jonnathan-Landi/RFplus/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/Jonnathan-Landi/RFplus/actions/workflows/R-CMD-check.yaml) [![CRAN status](https://www.r-pkg.org/badges/version/RFplus)](https://cran.r-project.org/package=RFplus) [![CRAN RStudio mirror downloads](https://cranlogs.r-pkg.org/badges/RFplus)](https://www.r-pkg.org/pkg/RFplus)
 
+--------------------------------------------------------------------------------
 # Overview
 
 RFplus is an advanced multi-ensemble algorithm developed by Landi et al. (2025) to reduce bias in satellite precipitation products. The primary goal of RFplus is to enhance the accuracy of satellite-based precipitation estimates by leveraging in situ station data and the Random Forest algorithm. Although RFplus is currently designed for precipitation bias correction, ongoing research is investigating its potential applications for other meteorological variables, such as temperature and wind speed. How RFplus Works
