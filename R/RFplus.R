@@ -1,10 +1,10 @@
 # Declare global variables to prevent R CMD check warnings
 utils::globalVariables(c("Cod", "ID", "X", "Y", "Date", "Obs", "sim", "residuals", "var", ".", ".SD"))
-#' Bias Correction of Satellite Products Using Hybrid Random Forest and Quantile Mapping
+#' Machine learning algorithm for fusing ground and satellite precipitation data.
 #'
 #' @description
-#' Applies a hybrid three-step bias correction approach combining Random Forest predictions, residual correction,
-#' and distribution adjustment using quantile mapping methods to correct biases in satellite-derived environmental data.
+#' MS-GOP is a machine learning algorithm for merging satellite-based and ground precipitation data.
+#' It combines Random Forest for spatial prediction, residual modeling for bias correction, and quantile mapping for final adjustment, ensuring accurate precipitation estimates across different temporal scales
 #'
 #' @details
 #' The `RFplus` method implements a three-step approach:
@@ -59,10 +59,6 @@ utils::globalVariables(c("Cod", "ID", "X", "Y", "Date", "Obs", "sim", "residuals
 #'  data("BD_Insitu", package = "RFplus")
 #'  data("Cords_Insitu", package = "RFplus")
 #'
-#' # Convert to data.table
-#' setDT(BD_Insitu)
-#' setDT(Cords_Insitu)
-#'
 #' # Load the covariates
 #' Covariates <- list(
 #'  MSWEP = terra::rast(system.file("extdata/MSWEP.nc", package = "RFplus")),
@@ -71,9 +67,15 @@ utils::globalVariables(c("Cod", "ID", "X", "Y", "Date", "Obs", "sim", "residuals
 #'  )
 #'
 #'  # Apply the RFplus bias correction model
-#'  RFplus(BD_Insitu, Cords_Insitu, Covariates, n_round = 1, wet.day = 0.1,
-#'       ntree = 2000, seed = 123, training = 1, Rain_threshold = 0.1,
-#'       method = "QUANT", ratio = 15, save_model = FALSE, name_save = NULL)
+#' model = RFplus(BD_Insitu, Cords_Insitu, Covariates, n_round = 1, wet.day = 0.1,
+#'         ntree = 2000, seed = 123, training = 1, Rain_threshold = 0.1, method = "RQUANT",
+#'         ratio = 5, save_model = FALSE, name_save = NULL)
+#' # Visualize the results
+#' # Precipitation results within the study area
+#' modelo_rainfall = model$Ensamble
+#' # Validation statistic results
+#' metrics = model$Validation
+#' # Note: In the above example we used 80% of the data for training and 20% for # model validation.
 #' }
 #'
 #' @return Returns a list containing two elements:
