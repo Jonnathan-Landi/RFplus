@@ -1,4 +1,4 @@
-# **RFplus:** *Progressive Bias Correction of Satellite Environmental Data* <img src="man/figures/logo_RFplus.png" align="right" width="250"/>
+# **RFplus:** *A Novel Machine Learning Approach for Merging Multi-Satellite Precipitation Products and Ground Observations* <img src="man/figures/logo_RFplus.png" align="right" width="250"/>
 
 <!-- CRAN:Check -->
 
@@ -6,65 +6,36 @@
 
 # Overview
 
-RFplus is an advanced multi-ensemble algorithm developed by Landi et al. (2025) to reduce bias in satellite precipitation products. The primary goal of RFplus is to enhance the accuracy of satellite-based precipitation estimates by leveraging in situ station data and the Random Forest algorithm. Although RFplus is currently designed for precipitation bias correction, ongoing research is investigating its potential applications for other meteorological variables, such as temperature and wind speed. How RFplus Works
+The RFplus package implements a novel spatial extrapolation and bias correction framework, integrating Random Forest (RF) and Quantile Mapping (QM) in a multi-stage process to improve the accuracy of satellite precipitation estimates. The methodology consists of three key stages:
 
-RFplus operates through a structured multi-step process to train and apply models for satellite data bias adjustment:
+1.  **Spatial Extrapolation of Precipitation:** The first stage employs a Random Forest model to extrapolate the spatial distribution of precipitation. The model is trained using in-situ measurements as the response variable and a diverse set of satellite precipitation products and environmental covariates as predictors. This approach enables the generation of an initial precipitation field that extends observed precipitation patterns across unmonitored regions with high spatial flexibility, allowing applications at different temporal scales (e.g., daily, monthly, or annual).
 
-## **Double Ensemble Approach**
+2.  **Residual Correction through a Secondary RF Model:** To enhance predictive accuracy, a second Random Forest model is trained to estimate residual errors from the initial predictions. The residuals are defined as the difference between observed and modeled precipitation values at station locations. By modeling these residuals as a function of the same covariates used in the first stage, systematic biases are identified and corrected iteratively. The corrected precipitation estimate is obtained by summing the residual predictions to the initial RF-based precipitation estimates, leading to a refined precipitation product with reduced bias and improved spatial coherence.
 
-### First Model (Model 1):
+3.  **Bias Adjustment via Non-Parametric Quantile Mapping (QM):** In the third stage, a nonparametric quantile mapping (QM) is applied to adapt the distribution of each time series to the in situ observations of the nearest station. The QM correction will be applied to those pixels that meet the proximity criterion, which states that only pixels within a predefined radius of influence (e.g., ≤15 km) are QM corrected.
 
-Trains a Random Forest model using covariates (e.g., satellite products and Digital Elevation Model [DEM]) and in situ station data.
+The RFplus package is designed to be highly adaptable and can be utilized across various satellite precipitation products and geographic regions. Although initially developed for precipitation bias correction, its methodology is applicable to other environmental variables such as temperature, wind speed, and soil moisture. This versatility makes RFplus a powerful tool for enhancing the accuracy of remote sensing-based estimations across diverse environmental conditions.
 
-Incorporates additional features such as Euclidean distance and altitude differences, derived from the DEM, as covariates.
-
-### Second Model (Model 2):
-
-Trains on the residuals of Model 1, predicting the differences between observed and predicted values.
-
-Aims to correct residual errors from Model 1 and minimize remaining biases.
-
-### Quantile Mapping Correction (QDM)
-
-Combines predictions from both models.
-
-Applies quantile mapping correction (QDM) to adjust the final distribution of predicted values using the nearest in situ stations.
-
-3.  Output Generation
-
-Produces bias-corrected satellite precipitation maps.
-
-Optionally saves the final corrected maps as NetCDF files.
-
-Key Requirements for RFplus
+# Key Requirements for RFplus
 
 To ensure the optimal performance of RFplus, the following requirements must be met:
 
-Data Quality:
+1.  **Data Quality:** In situ station data must undergo rigorous quality control and homogenization before use.
+2.  Stations should have less than 10% missing data to avoid skewing the quantile correction.
+3.  **Input Data Consistency:**
+    -   Covariates must share the same spatial extent and coordinate reference system (CRS).
 
-In situ station data must undergo rigorous quality control and homogenization before use.
+    -   All covariates should have the same number of layers.
+4.  **Mandatory Use of DEM:**
+    -   A DEM is required as an input parameter.
 
-Stations should have less than 10% missing data to avoid skewing the quantile correction.
+    -   The DEM should have a single layer, which will be replicated to match the number of layers in other covariates.
+5.  **Covariate Structure:**
+    -   Covariates should be provided as a list of raster layers.
 
-Input Data Consistency:
+    -   The classes of all covariates must be consistent.
 
-Covariates must share the same spatial extent and coordinate reference system (CRS).
-
-All covariates should have the same number of layers.
-
-Mandatory Use of DEM:
-
-A DEM is required as an input parameter.
-
-The DEM should have a single layer, which will be replicated to match the number of layers in other covariates.
-
-Covariate Structure:
-
-Covariates should be provided as a list of raster layers.
-
-The classes of all covariates must be consistent.
-
-## Installation
+# Installation
 
 `RFplus` is available on CRAN, so, to get the current version you can use:
 
@@ -80,9 +51,9 @@ library(devtools)
 install_github("Jonnathan-Landi/RFplus")
 ```
 
-## Installation and Usage
+# Example using RFplus
 
-RFplus can be implemented in R an example of RFplus as follows:
+Example of a RFplus run using the example data.
 
 ``` r
 library(RFplus)
@@ -113,6 +84,6 @@ metrics = model$Validation
 # Note: In the above example we used 80% of the data for training and 20% for # model validation.  
 ```
 
-## Limitations and Future Research
+# Limitations and Future Research
 
-While RFplus currently focuses on precipitation bias correction, research is underway to evaluate its capability to reduce bias in other meteorological variables, such as temperature and wind speed. Users should ensure proper preprocessing and adhere to input requirements for optimal results.
+Currently, the RFplus algorithm does not support parallel mode execution, which means that, when working with large volumes of data, the processing time can be long. Research is currently underway on how to integrate parallel execution capability to improve efficiency and reduce computation time in future uses of the algorithm.
