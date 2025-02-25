@@ -1,3 +1,9 @@
+# Version 1.4-0 (CRAN)
+
+### New Features
+
+-   An update of the vignettes was made to address the improvements introduced in the previous versions.
+
 # Version 1.3-0 (CRAN)
 
 ### New Features
