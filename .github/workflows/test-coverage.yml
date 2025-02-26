@@ -61,7 +61,7 @@ jobs:
 
       - name: Show coverage summary
         run: |
-          print(covr::report(cov, file = stdout()))
+          print(covr::report(cov, file = ""))
         shell: Rscript {0}
 
       - uses: codecov/codecov-action@v4.1.0
