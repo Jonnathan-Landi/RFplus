@@ -3,6 +3,7 @@
 ### New Features
 
 -   An update of the vignettes was made to address the improvements introduced in the previous versions.
+-   Added a workflow within GitHub Actions to calculate code coverage on Windows, ubuntu and macOS.
 
 # Version 1.3-0 (CRAN)
 
