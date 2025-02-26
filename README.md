@@ -3,6 +3,7 @@
 <!-- CRAN:Check -->
 
 [![R-CMD-check](https://github.com/Jonnathan-Landi/RFplus/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/Jonnathan-Landi/RFplus/actions/workflows/R-CMD-check.yaml) [![CRAN status](https://www.r-pkg.org/badges/version/RFplus)](https://cran.r-project.org/package=RFplus) [![CRAN RStudio mirror downloads](https://cranlogs.r-pkg.org/badges/RFplus)](https://www.r-pkg.org/pkg/RFplus)
+[![Codecov test coverage](https://codecov.io/gh/Jonnathan-Landi/RFplus/branch/main/graph/badge.svg)](https://app.codecov.io/gh/Jonnathan-Landi/RFplus)
 
 # Overview
 
