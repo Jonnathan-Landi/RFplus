@@ -143,6 +143,10 @@ RFplus.data.table <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NUL
   # Change the column name to match the full code
   if (date_column != "Date") setnames(BD_Insitu, date_column, "Date")
 
+  # Verify that all dates have at least one entry recorded
+  Dates_NA <- BD_insitu[apply(BD_insitu[, .SD, .SDcols = -1], 1, function(x) all(is.na(x))), Date]
+  if (length(Dates_NA) > 0) stop(paste0("No data was found for the dates: ", paste(Dates_NA, collapse = ", ")))
+
   # Check that the coordinate names appear in the observed data
   if (!all(Cords_Insitu$Cod %chin% setdiff(names(BD_Insitu), "Date"))) stop("The names of the coordinates do not appear in the observed data.")
 
@@ -229,10 +233,24 @@ RFplus.data.table <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NUL
         return(H / (H + M + FA))
       }
 
+      # Function for calculating the bias score (Bscore)
+      calculate_bscore <- function(H, M, FA) {
+        if (H + M == 0) return(NA)
+        return((H + FA) / (H + M ))
+      }
+
+      # Function for calculating the success ratio (Scratio)
+      calculate_scratio <- function(H, M, FA) {
+        if (H + FA == 0) return(NA)
+        return(H / (H + FA))
+      }
+
       # Metrics
       pod <- calculate_pod(H, M)
       far <- calculate_far(H, FA)
       csi <- calculate_csi(H, M, FA)
+      bscore <- calculate_bscore(H, M, FA)
+      SR <- calculate_scratio(H, M, FA)
 
       res_metrics = data.table(
         CC = CC,
@@ -241,7 +259,9 @@ RFplus.data.table <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NUL
         PBIAS = PBIAS,
         POD = pod,
         FAR = far,
-        CSI = csi
+        CSI = csi,
+        BSCORE = bscore,
+        SR = SR
       )
       return(res_metrics)
     }
@@ -257,7 +277,6 @@ RFplus.data.table <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NUL
     train_data <- BD_Insitu
     train_cords <- Cords_Insitu
   }
-
   ##############################################################################
   #                         Prepare data for training                          #
   ##############################################################################
