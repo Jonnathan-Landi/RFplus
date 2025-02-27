@@ -144,7 +144,7 @@ RFplus.data.table <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NUL
   if (date_column != "Date") setnames(BD_Insitu, date_column, "Date")
 
   # Verify that all dates have at least one entry recorded
-  Dates_NA <- BD_insitu[apply(BD_insitu[, .SD, .SDcols = -1], 1, function(x) all(is.na(x))), Date]
+  Dates_NA <- BD_Insitu[apply(BD_Insitu[, .SD, .SDcols = -1], 1, function(x) all(is.na(x))), Date]
   if (length(Dates_NA) > 0) stop(paste0("No data was found for the dates: ", paste(Dates_NA, collapse = ", ")))
 
   # Check that the coordinate names appear in the observed data
