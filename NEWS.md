@@ -1,6 +1,16 @@
 # Version 1.4-0 (CRAN)
 
+#### ***Expected Release Date:*** 2025-03-15
+
 ### New Features
+
+-   Implemented a validation check to identify dates with completely missing data in BD_insitu. This feature allows users to detect and visualize dates where all recorded values are NA, preventing the model from processing them. If such dates are found, the system will trigger a warning, ensuring data completeness before running the Random Forest predictions.
+
+<!-- -->
+
+-   Two additional categorical metrics have been added when “training” has a value other than 1. The added metrics are: success ratio (SR), bias score (bscore).
+
+<!-- -->
 
 -   An update of the vignettes was made to address the improvements introduced in the previous versions.
 -   Added a workflow within GitHub Actions to calculate code coverage on Windows, ubuntu and macOS.
@@ -24,7 +34,7 @@
 
 # Version 1.2-2 (release-CRAN)
 
-### New Features
+### Bug Fixed
 
 -   We modified the description of the package to meet the corrections suggested by CRAN.
 
@@ -32,7 +42,7 @@
 
 # Version 1.2-1 (release-CRAN)
 
-### New Features
+### Bug Fixed
 
 -   The word quantile mapping was changed to Quantile Mapping due to CRAN's comment of “ Words possibly misspelled in DESCRIPTION”.
 
