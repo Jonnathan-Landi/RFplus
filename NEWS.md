@@ -4,15 +4,14 @@
 
 ### New Features
 
--   Implemented a validation check to identify dates with completely missing data in BD_insitu. This feature allows users to detect and visualize dates where all recorded values are NA, preventing the model from processing them. If such dates are found, the system will trigger a warning, ensuring data completeness before running the Random Forest predictions.
+-   The evaluation_metrics function has been updated to allow classification of precipitation data into various intensity categories (e.g., light, moderate, heavy rain). It now accepts a list of custom thresholds to define these categories and calculates specific performance metrics for each, such as Critical Success Index (CSI), Probability of Detection (POD) and False Alarm Rate (FAR). This facilitates a more detailed evaluation of model performance at different rainfall intensities. In addition, the function retains traditional fitting metrics, such as RMSE and KGE, providing a complete evaluation tailored to scenarios with rainfall variability.
 
-<!-- -->
+-   Implemented a validation check to identify dates with completely missing data in BD_insitu. This feature allows users to detect and visualize dates where all recorded values are NA, preventing the model from processing them. If such dates are found, the system will trigger a warning, ensuring data completeness before running the Random Forest predictions.
 
 -   Two additional categorical metrics have been added when “training” has a value other than 1. The added metrics are: success ratio (SR), bias score (bscore).
 
-<!-- -->
-
 -   An update of the vignettes was made to address the improvements introduced in the previous versions.
+
 -   Added a workflow within GitHub Actions to calculate code coverage on Windows, ubuntu and macOS.
 
 # Version 1.3-0 (CRAN)
