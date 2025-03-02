@@ -17,7 +17,7 @@ RFplus(BD_Insitu, Cords_Insitu, Covariates, ...)
   ntree = 2000,
   seed = 123,
   training = 1,
-  Rain_threshold = 0.1,
+  Rain_threshold = list(no_rain = c(0, 1)),
   method = c("RQUANT", "QUANT", "none"),
   ratio = 15,
   save_model = FALSE,
@@ -34,7 +34,7 @@ RFplus(BD_Insitu, Cords_Insitu, Covariates, ...)
   ntree = 2000,
   seed = 123,
   training = 1,
-  Rain_threshold = 0.1,
+  Rain_threshold = list(no_rain = c(0, 1)),
   method = c("RQUANT", "QUANT", "none"),
   ratio = 15,
   save_model = FALSE,
@@ -71,17 +71,21 @@ must be `data.table`. Each row represents a time step with measurements of the c
 \item{training}{Numerical value between 0 and 1 indicating the proportion of data used for model training. The remaining data are used for validation. Note that if you enter, for example, 0.8 it means that 80 % of the data will be used for training and 20 % for validation.
 If you do not want to perform validation, set training = 1. (Default training = 1).}
 
-\item{Rain_threshold}{Numeric value that defines the precipitation threshold for classifying rainfall events.
-Precipitation values above this threshold will be considered as rainfall events, while values below it will be considered as no-rain events.
-This parameter is used to calculate key performance metrics such as the Probability of Detection (POD), False Alarm Rate (FAR), and Critical Success Index (CSI),
-which help assess the accuracy of rainfall event predictions.
-Note: This parameter should only be set when `training` is not equal to 1, as it is needed to calculate the POD, FAR, and CSI metrics.
-The default value for this parameter is 0.1.}
+\item{Rain_threshold}{A list of numeric vectors that define the precipitation thresholds for classifying rainfall events into different categories based on intensity.
+Each element of the list should represent a category, with the category name as the list element's name and a numeric vector specifying the lower and upper bounds for that category.
+
+\strong{Note:} See the "Notes" section for additional details on how to define categories, use this parameter for validation, and example configurations.}
 
 \item{method}{A character string specifying the quantile mapping method used for distribution adjustment. Options are:
-- `"RQUANT"`: Robust quantile mapping to adjust satellite data distribution to observed data.
-- `"QUANT"`: Standard quantile mapping.
-- `"none"`: No distribution adjustment is applied. Only Random Forest-based bias correction and residual correction are performed.}
+
+- \code{"RQUANT"}:
+  Robust quantile mapping to adjust satellite data distribution to observed data.
+
+- \code{"QUANT"}:
+  Standard quantile mapping.
+
+- \code{"none"}:
+  No distribution adjustment is applied. Only Random Forest-based bias correction and residual correction are performed.}
 
 \item{ratio}{integer Maximum search radius (in kilometers) for the quantile mapping setting using the nearest station. (default = 15 km)}
 
@@ -93,11 +97,20 @@ If you set a different name, make sure you do not set the ".nc" format,
 as the code will internally assign it.}
 }
 \value{
-Returns a list containing two elements:
-  \item{Ensamble}{A `SpatRaster` object containing the bias-corrected layers for each time step. The number of layers
-  corresponds to the number of dates for which the correction is applied. This represents the corrected satellite data adjusted for bias.}
-  \item{Validation}{A data frame or similar object containing the statistical results obtained from the validation process.
-  These statistics assess the performance of the bias correction applied to the satellite data.}.
+A list containing two elements:
+
+\strong{Ensamble:}
+A `SpatRaster` object containing the bias-corrected layers for each time step. The number of layers
+corresponds to the number of dates for which the correction is applied. This represents the corrected satellite data adjusted for bias.
+
+\strong{Validation:}
+A list containing the statistical results obtained from the validation process. This list includes:
+
+- \code{gof}:
+  A data table with goodness-of-fit metrics such as Kling-Gupta Efficiency (KGE), Nash-Sutcliffe Efficiency (NSE), Percent Bias (PBIAS), Root Mean Square Error (RMSE), and Pearson Correlation Coefficient (CC). These metrics assess the overall performance of the bias correction process.
+
+- \code{categorical_metrics}:
+  A data frame containing categorical evaluation metrics such as Probability of Detection (POD), Success Ratio (SR), False Alarm Rate (FAR), Critical Success Index (CSI), and Hit Bias (HB). These metrics evaluate the classification performance of rainfall event predictions based on user-defined precipitation thresholds.
 }
 \description{
 MS-GOP is a machine learning algorithm for merging satellite-based and ground precipitation data.
@@ -105,12 +118,36 @@ It combines Random Forest for spatial prediction, residual modeling for bias cor
 }
 \details{
 The `RFplus` method implements a three-step approach:
-1. **Base Prediction**: Random Forest model is trained using satellite data and covariates.
-2. **Residual Correction**: A second Random Forest model is used to correct the residuals from the base prediction.
-3. **Distribution Adjustment**: Quantile mapping (QUANT or RQUANT) is applied to adjust the distribution of satellite data to match the observed data distribution.
+
+- \strong{Base Prediction}:
+  Random Forest model is trained using satellite data and covariates.
+
+- \strong{Residual Correction}:
+  A second Random Forest model is used to correct the residuals from the base prediction.
+
+- \strong{Distribution Adjustment}:
+  Quantile mapping (QUANT or RQUANT) is applied to adjust the distribution of satellite data to match the observed data distribution.
 
 The final result combines all three steps, correcting the biases while preserving the outliers, and improving the accuracy of satellite-derived data such as precipitation and temperature.
 }
+\section{Notes}{
+
+The `Rain_threshold` parameter is used to classify precipitation events based on intensity into different categories. For example:
+
+\code{Rain_threshold = list(
+  no_rain = c(0, 1),
+  light_rain = c(1, 5),
+  moderate_rain = c(5, 20),
+  heavy_rain = c(20, 40),
+  violent_rain = c(40, 100)
+)}
+
+Precipitation values will be classified into these categories based on their intensity.
+Users can define as many categories as necessary, or just two (e.g., "rain" vs. "no rain").
+
+This parameter is required only when `training` is not equal to 1, as it is needed to calculate performance metrics such as the Probability of Detection (POD), False Alarm Rate (FAR), and Critical Success Index (CSI).
+}
+
 \examples{
 \donttest{
 # Load the libraries
@@ -136,7 +173,11 @@ model = RFplus(BD_Insitu, Cords_Insitu, Covariates, n_round = 1, wet.day = 0.1,
 # Precipitation results within the study area
 modelo_rainfall = model$Ensamble
 # Validation statistic results
-metrics = model$Validation
+# goodness-of-fit metrics
+metrics_gof = model$Validation$gof
+
+# categorical metrics
+metrics_cat = model$Validation$categorical_metrics
 # Note: In the above example we used 80\% of the data for training and 20\% for # model validation.
 }
 
