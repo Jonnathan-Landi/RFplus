@@ -48,8 +48,17 @@ DEM = terra::rast(system.file("extdata/DEM.nc", package = "RFplus"))
 # Adjust individual covariates to the covariate format required by RFplus
 Covariates = list(MSWEP = MSWEP, CHIRPS = CHIRPS, DEM = DEM)
 
-# Apply the RFplus
-model = RFplus(BD_Insitu, Cords_Insitu, Covariates, n_round = 1, wet.day = 0.1 , ntree = 2000, seed = 123, training = 0.8, Rain_threshold = 0.1, method = "RQUANT", ratio = 5, save_model = FALSE, name_save = NULL
+# Apply the RFplus -----------------------------------------------------------
+# 1. Define categories to categorize rainfall intensity
+Rain_threshold = list(
+  no_rain = c(0, 1),
+  light_rain = c(1, 5),
+  moderate_rain = c(5, 20),
+  heavy_rain = c(20, 40),
+  violent_rain = c(40, 100)
+)
+# 2. Apply de the model
+model = RFplus(BD_Insitu, Cords_Insitu, Covariates, n_round = 1, wet.day = 0.1 , ntree = 2000, seed = 123, training = 0.8, Rain_threshold = Rain_threshold, method = "RQUANT", ratio = 5, save_model = FALSE, name_save = NULL
 )
 ```
 
@@ -60,9 +69,12 @@ model = RFplus(BD_Insitu, Cords_Insitu, Covariates, n_round = 1, wet.day = 0.1 ,
 modelo_rainfall = model$Ensamble
 
 # Validation statistic results 
-metrics = model$Validation
-# Note: In the above example we used 80% of the data for training and 20% for model validation. 
+# goodness-of-fit metrics
+metrics_gof = model$Validation$gof
 
+# Categorical Metrics
+metrics_categoricxal = model$Validation$categorical_metrics
+# Note: In the above example we used 80% of the data for training and 20% for model validation. 
 ```
 
 ## Example of displaying an interpolated layer
@@ -72,6 +84,28 @@ metrics = model$Validation
 plot(modelo_rainfall[[1]])
 
 ```
+
+## Note
+
+The Rain_threshold parameter is used exclusively when performing point-to-pixel validation of the model. Its purpose is to classify rainfall values into different intensity categories, allowing the calculation of categorical performance metrics such as Probability of Detection (POD), False Alarm Rate (FAR), Critical Success Index (CSI), among others.
+
+This parameter should be defined as a list, where each category corresponds to a range of precipitation values. For example:
+
+```{r}
+Rain_threshold = list(
+  no_rain = c(0, 1), # No precipitation
+  light_rain = c(1, 5), # Light rainfall
+  moderate_rain = c(5, 20), # Moderate rainfall
+  heavy_rain = c(20, 40), # Heavy rainfall
+  violent_rain = c(40, 100) # violent rain
+)
+```
+
+This parameter should only be specified when training is different from 1, because in this case the algorithm performs a validation of the results.
+
+When training = 1, the model trains with 100% of the available data and does not perform validation, so Rain_threshold is not used.
+
+Finally, the user has full flexibility to define one or more categories as he/she deems appropriate, which allows to adapt the classification of precipitation events to different regions.
 
 ## Conclusion
 
