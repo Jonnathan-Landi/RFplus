@@ -1,5 +1,6 @@
 # Declare global variables to prevent R CMD check warnings
-utils::globalVariables(c("Cod", "ID", "X", "Y", "Date", "Obs", "sim", "residuals", "var", ".", ".SD"))
+utils::globalVariables(c("Cod", "ID", "X", "Y", "Date", "Obs", "sim", "residuals",
+                         "var", ".", ".SD", "observed","estimated", "copy", ".N", "Sim"))
 #' Machine learning algorithm for fusing ground and satellite precipitation data.
 #'
 #' @description
@@ -8,9 +9,15 @@ utils::globalVariables(c("Cod", "ID", "X", "Y", "Date", "Obs", "sim", "residuals
 #'
 #' @details
 #' The `RFplus` method implements a three-step approach:
-#' 1. **Base Prediction**: Random Forest model is trained using satellite data and covariates.
-#' 2. **Residual Correction**: A second Random Forest model is used to correct the residuals from the base prediction.
-#' 3. **Distribution Adjustment**: Quantile mapping (QUANT or RQUANT) is applied to adjust the distribution of satellite data to match the observed data distribution.
+#'
+#' - \strong{Base Prediction}:
+#'   Random Forest model is trained using satellite data and covariates.
+#'
+#' - \strong{Residual Correction}:
+#'   A second Random Forest model is used to correct the residuals from the base prediction.
+#'
+#' - \strong{Distribution Adjustment}:
+#'   Quantile mapping (QUANT or RQUANT) is applied to adjust the distribution of satellite data to match the observed data distribution.
 #'
 #' The final result combines all three steps, correcting the biases while preserving the outliers, and improving the accuracy of satellite-derived data such as precipitation and temperature.
 #'
@@ -32,16 +39,22 @@ utils::globalVariables(c("Cod", "ID", "X", "Y", "Date", "Obs", "sim", "residuals
 #' @param seed Integer for setting the random seed to ensure reproducibility of results (default: 123).
 #' @param training Numerical value between 0 and 1 indicating the proportion of data used for model training. The remaining data are used for validation. Note that if you enter, for example, 0.8 it means that 80 % of the data will be used for training and 20 % for validation.
 #' If you do not want to perform validation, set training = 1. (Default training = 1).
-#' @param Rain_threshold Numeric value that defines the precipitation threshold for classifying rainfall events.
-#' Precipitation values above this threshold will be considered as rainfall events, while values below it will be considered as no-rain events.
-#' This parameter is used to calculate key performance metrics such as the Probability of Detection (POD), False Alarm Rate (FAR), and Critical Success Index (CSI),
-#' which help assess the accuracy of rainfall event predictions.
-#' Note: This parameter should only be set when `training` is not equal to 1, as it is needed to calculate the POD, FAR, and CSI metrics.
-#' The default value for this parameter is 0.1.
-#' @param method A character string specifying the quantile mapping method used for distribution adjustment. Options are:
-#'   - `"RQUANT"`: Robust quantile mapping to adjust satellite data distribution to observed data.
-#'   - `"QUANT"`: Standard quantile mapping.
-#'   - `"none"`: No distribution adjustment is applied. Only Random Forest-based bias correction and residual correction are performed.
+#' @param Rain_threshold
+#' A list of numeric vectors that define the precipitation thresholds for classifying rainfall events into different categories based on intensity.
+#' Each element of the list should represent a category, with the category name as the list element's name and a numeric vector specifying the lower and upper bounds for that category.
+#'
+#' \strong{Note:} See the "Notes" section for additional details on how to define categories, use this parameter for validation, and example configurations.
+#' @param method
+#' A character string specifying the quantile mapping method used for distribution adjustment. Options are:
+#'
+#' - \code{"RQUANT"}:
+#'   Robust quantile mapping to adjust satellite data distribution to observed data.
+#'
+#' - \code{"QUANT"}:
+#'   Standard quantile mapping.
+#'
+#' - \code{"none"}:
+#'   No distribution adjustment is applied. Only Random Forest-based bias correction and residual correction are performed.
 #' @param ratio integer Maximum search radius (in kilometers) for the quantile mapping setting using the nearest station. (default = 15 km)
 #' @param save_model Logical value indicating whether the corrected raster layers should be saved to disk. The default is `FALSE`.
 #'    If set to `TRUE`, make sure to set the working directory beforehand using `setwd(path)` to specify where the files should be saved.
@@ -74,15 +87,45 @@ utils::globalVariables(c("Cod", "ID", "X", "Y", "Date", "Obs", "sim", "residuals
 #' # Precipitation results within the study area
 #' modelo_rainfall = model$Ensamble
 #' # Validation statistic results
-#' metrics = model$Validation
+#' # goodness-of-fit metrics
+#' metrics_gof = model$Validation$gof
+#'
+#' # categorical metrics
+#' metrics_cat = model$Validation$categorical_metrics
 #' # Note: In the above example we used 80% of the data for training and 20% for # model validation.
 #' }
 #'
-#' @return Returns a list containing two elements:
-#'   \item{Ensamble}{A `SpatRaster` object containing the bias-corrected layers for each time step. The number of layers
-#'   corresponds to the number of dates for which the correction is applied. This represents the corrected satellite data adjusted for bias.}
-#'   \item{Validation}{A data frame or similar object containing the statistical results obtained from the validation process.
-#'   These statistics assess the performance of the bias correction applied to the satellite data.}.
+#' @section Notes:
+#' The `Rain_threshold` parameter is used to classify precipitation events based on intensity into different categories. For example:
+#'
+#' \code{Rain_threshold = list(
+#'   no_rain = c(0, 1),
+#'   light_rain = c(1, 5),
+#'   moderate_rain = c(5, 20),
+#'   heavy_rain = c(20, 40),
+#'   violent_rain = c(40, 100)
+#' )}
+#'
+#' Precipitation values will be classified into these categories based on their intensity.
+#' Users can define as many categories as necessary, or just two (e.g., "rain" vs. "no rain").
+#'
+#' This parameter is required only when `training` is not equal to 1, as it is needed to calculate performance metrics such as the Probability of Detection (POD), False Alarm Rate (FAR), and Critical Success Index (CSI).
+#'
+#' @return A list containing two elements:
+#'
+#' \strong{Ensamble:}
+#' A `SpatRaster` object containing the bias-corrected layers for each time step. The number of layers
+#' corresponds to the number of dates for which the correction is applied. This represents the corrected satellite data adjusted for bias.
+#'
+#' \strong{Validation:}
+#' A list containing the statistical results obtained from the validation process. This list includes:
+#'
+#' - \code{gof}:
+#'   A data table with goodness-of-fit metrics such as Kling-Gupta Efficiency (KGE), Nash-Sutcliffe Efficiency (NSE), Percent Bias (PBIAS), Root Mean Square Error (RMSE), and Pearson Correlation Coefficient (CC). These metrics assess the overall performance of the bias correction process.
+#'
+#' - \code{categorical_metrics}:
+#'   A data frame containing categorical evaluation metrics such as Probability of Detection (POD), Success Ratio (SR), False Alarm Rate (FAR), Critical Success Index (CSI), and Hit Bias (HB). These metrics evaluate the classification performance of rainfall event predictions based on user-defined precipitation thresholds.
+#'
 #' @author
 #'  Jonnathan Augusto landi Bermeo, jonnathan.landi@outlook.com
 #' @rdname RFplus
@@ -94,8 +137,8 @@ RFplus <- function(BD_Insitu, Cords_Insitu, Covariates,...) {
 #' @rdname RFplus
 #' @export
 RFplus.default <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NULL, wet.day = FALSE,
-                           ntree = 2000, seed = 123, training = 1, Rain_threshold = 0.1, method = c("RQUANT","QUANT","none"),
-                           ratio = 15, save_model = FALSE, name_save = NULL, ...) {
+                           ntree = 2000, seed = 123, training = 1, Rain_threshold = list(no_rain = c(0, 1)),
+                           method = c("RQUANT","QUANT","none"), ratio = 15, save_model = FALSE, name_save = NULL, ...) {
 
   if (!inherits(BD_Insitu, "data.table")) stop("BD_Insitu must be a data.table.")
 
@@ -108,7 +151,7 @@ RFplus.default <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NULL, 
 #' @rdname RFplus
 #' @export
 RFplus.data.table <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NULL, wet.day = FALSE,
-                              ntree = 2000, seed = 123, training = 1, Rain_threshold = 0.1, method = c("RQUANT","QUANT","none"),
+                              ntree = 2000, seed = 123, training = 1, Rain_threshold = list(no_rain = c(0, 1)), method = c("RQUANT","QUANT","none"),
                               ratio = 15, save_model = FALSE, name_save = NULL, ...) {
 
   ##############################################################################
@@ -197,73 +240,82 @@ RFplus.data.table <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NUL
     test_data <- BD_Insitu[, .SD, .SDcols = setdiff(names(BD_Insitu), train_columns)]
 
     # Function used to validate data
-    validate = function(data, Rain_threshold) {
-      CC = round(hydroGOF::rPearson(data$Sim, data$Obs, na.rm = T),3)
-      RMSE = round(hydroGOF::rmse(data$Sim, data$Obs, na.rm = T),3)
-      KGE = round(hydroGOF::KGE(data$Sim, data$Obs, na.rm = T),3)
-      PBIAS = round(hydroGOF::pbias(data$Sim, data$Obs, na.rm = T),3)
-
-      # Calculations for other metrics
-      data = na.omit(data)
-      observed_fac = factor(ifelse(data$Obs > Rain_threshold, 1, 0), levels = c(1, 0))
-      forecast_fac = factor(ifelse(data$Sim > Rain_threshold, 1, 0), levels = c(1, 0))
-      contingency_table <- table(forecast_fac, observed_fac)
-
-      # Extract components from the table
-      H <- contingency_table["1", "1"]  # Hits (Forecast=1, Observed=1)
-      FA <- contingency_table["1", "0"] # False alarms (Forecast=1, Observed=0)
-      M <- contingency_table["0", "1"]  # Omissions (Forecast=0, Observed=1)
-      CN <- contingency_table["0", "0"] # Negative corrections (Forecast=0, Observed=0)
-
-      # functions for calculations
-      calculate_pod <- function(H, M) {
-        if (H + M == 0) return(NA)
-        return(H / (H + M))
-      }
-
-      # Function for calculating False Alarm Rate (FAR)
-      calculate_far <- function(H, FA) {
-        if (H + FA == 0) return(NA)
-        return(FA / (H + FA))
-      }
-
-      # Function for calculating the Critical Success Index (CSI)
-      calculate_csi <- function(H, M, FA) {
-        if (H + M + FA == 0) return(NA)
-        return(H / (H + M + FA))
-      }
-
-      # Function for calculating the bias score (Bscore)
-      calculate_bscore <- function(H, M, FA) {
-        if (H + M == 0) return(NA)
-        return((H + FA) / (H + M ))
-      }
-
-      # Function for calculating the success ratio (Scratio)
-      calculate_scratio <- function(H, M, FA) {
-        if (H + FA == 0) return(NA)
-        return(H / (H + FA))
-      }
-
-      # Metrics
-      pod <- calculate_pod(H, M)
-      far <- calculate_far(H, FA)
-      csi <- calculate_csi(H, M, FA)
-      bscore <- calculate_bscore(H, M, FA)
-      SR <- calculate_scratio(H, M, FA)
-
-      res_metrics = data.table(
-        CC = CC,
-        RMSE = RMSE,
-        KGE = KGE,
-        PBIAS = PBIAS,
-        POD = pod,
-        FAR = far,
-        CSI = csi,
-        BSCORE = bscore,
-        SR = SR
+    evaluation_metrics <- function(data, rain_thresholds) {
+      ##############################################################################
+      #                       metrics of goodness of fit                           #
+      ##############################################################################
+      gof = data.table(
+        CC = round(hydroGOF::rPearson(data$Sim, data$Obs, na.rm = T), 3),
+        RMSE = round(hydroGOF::rmse(data$Sim, data$Obs, na.rm = T), 3),
+        KGE = round(hydroGOF::KGE(data$Sim, data$Obs, na.rm = T), 3),
+        NSE = round(hydroGOF::NSE(data$Sim, data$Obs, na.rm = T), 3),
+        PBIAS = round(hydroGOF::pbias(data$Sim, data$Obs, na.rm = T), 3)
       )
-      return(res_metrics)
+      ##############################################################################
+      #                       metrics of categorical                               #
+      ##############################################################################
+      create_threshold_categories <- function(rain_thresholds) {
+        cat_names <- names(rain_thresholds)
+        cat_min_values <- sapply(rain_thresholds, function(x) if(length(x) == 2) x[1] else x)
+
+        # Sort categories by threshold value
+        sorted_indices <- order(cat_min_values)
+        cat_names <- cat_names[sorted_indices]
+
+        # Create vectors for thresholds and categories
+        thresholds <- c(sapply(rain_thresholds[cat_names], function(x) if(length(x) == 2) x[1] else x), Inf)
+
+        return(list(thresholds = thresholds, categories = cat_names))
+      }
+
+      # Calculate performance metrics for each precipitation category
+      calculate_category_metrics <- function(dt, category) {
+        filtered_data <- dt[observed == category | estimated == category]
+
+        # Calculate metrics
+        hits <- filtered_data[observed == category & estimated == category, .N]
+        misses <- filtered_data[observed == category & estimated != category, .N]
+        false_alarms <- filtered_data[estimated == category & observed != category, .N]
+
+        # Calculate indices, handling zero denominators
+        POD <- ifelse((hits + misses) > 0, hits / (hits + misses), NA) # Probability of Detection
+        SR <- ifelse((hits + false_alarms) > 0, 1 - (false_alarms / (hits + false_alarms)), NA) # Success Ratio
+        CSI <- ifelse((hits + misses + false_alarms) > 0, hits / (hits + misses + false_alarms), NA) #Critical Success Index
+        HB <- ifelse((hits + misses) > 0, (hits + false_alarms) / (hits + misses), NA) # Hit BIAS
+        FAR <- ifelse((hits + false_alarms) > 0, false_alarms / (hits + false_alarms), NA) # False Alarm Rate
+
+        # Return results as data.table
+        return(data.table(
+          Category = category,
+          POD = POD,
+          SR = SR,
+          CSI = CSI,
+          HB = HB,
+          FAR = FAR
+        ))
+      }
+
+      dt <- copy(data)
+      setkey(dt, Date)
+      threshold_info <- create_threshold_categories(rain_thresholds)
+
+      # Classify observed and estimated precipitation
+      dt[, observed := ifelse(is.na(Obs), NA_character_,
+                              as.character(cut(Obs, breaks = threshold_info$thresholds,
+                                               labels = threshold_info$categories, right = FALSE)))]
+      dt[, estimated := ifelse(is.na(Sim), NA_character_,
+                               as.character(cut(Sim, breaks = threshold_info$thresholds,
+                                                labels = threshold_info$categories, right = FALSE)))]
+
+      # Create simplified data.table with just the categories
+      category_data <- dt[, .(observed, estimated)]
+
+      # Calculate metrics for each category and combine results
+      categorical_metrics <- rbindlist(lapply(threshold_info$categories, function(cat) {
+        calculate_category_metrics(category_data, cat)
+      }))
+
+      return(list(gof = gof, categorical_metrics = categorical_metrics))
     }
 
     # Coordinates of the training data
@@ -403,7 +455,6 @@ RFplus.data.table <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NUL
   })
 
   Ensamble <- terra::rast(raster_Model)
-
   # Model of the QM or QDM correction ------------------------------------------
   if (method == "none") {
     message("Analysis completed, QUANT or RQUANT correction phase not applied.")
@@ -524,13 +575,21 @@ RFplus.data.table <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NUL
       merge(test_data[, .(Date, Obs = get(col))], data_validation[, .(Date, Sim = get(col))], by = "Date", all = FALSE)
     })
     names(res_validate) <- common_columns
-    validation_results <- lapply(res_validate, function(x) validate(x, Rain_threshold = Rain_threshold))
+    validation_results <- lapply(res_validate, function(x) evaluation_metrics(x, rain_thresholds = Rain_threshold))
 
-    final_results <- data.table::rbindlist(validation_results, idcol = "ID")
+    combine_results <- function(results, metric_type) {
+      lapply(seq_along(results), function(i) {
+        results[[i]][[metric_type]]$ID = names(results)[i]
+        return(results[[i]][[metric_type]])
+      })
+    }
+
+    gof_final_results <- data.table::rbindlist(combine_results(validation_results, "gof"))
+    categorical_metrics_final_results <- data.table::rbindlist(combine_results(validation_results, "categorical_metrics"))
+    final_results <- list(gof = gof_final_results, categorical_metrics = categorical_metrics_final_results)
   } else {
     final_results <- NULL
   }
-
   ##############################################################################
   #                           Save the model if necessary                      #
   ##############################################################################
