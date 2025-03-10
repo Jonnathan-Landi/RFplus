@@ -1,0 +1,11 @@
+importFrom("terra", "crs", "ext", "nlyr", "rast", "vect", "distance", "extract", "predict", "writeRaster", "as.data.frame")
+importFrom("data.table", "%chin%", "%between%", "setDT", "setorder", "data.table", ":=", "melt", "rbindlist", "setkey", "setnames")
+importFrom("hydroGOF", "rPearson", "rmse", "KGE", "pbias")
+importFrom("pbapply", "pblapply", "pboptions")
+importFrom("qmap", "fitQmapQUANT", "fitQmapRQUANT", "doQmapRQUANT", "doQmapQUANT")
+importFrom("randomForest", "randomForest")
+importFrom("stats", "na.omit", "setNames", "residuals", "var")
+
+S3method(RFplus,data.table)
+S3method(RFplus,default)
+export(RFplus)

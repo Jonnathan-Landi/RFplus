@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<meta name="author" content="Jonnathan Augusto Landi Bermeo" />
+
+
+<title>RFplus: A Novel Machine Learning Approach for Merging Multi-Satellite Precipitation Products and Ground Observations</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">RFplus: A Novel Machine Learning Approach
+for Merging Multi-Satellite Precipitation Products and Ground
+Observations</h1>
+<h4 class="author">Jonnathan Augusto Landi Bermeo</h4>
+
+
+
+<div id="introduction" class="section level1">
+<h1>Introduction</h1>
+<p>The RFplus package implements a novel spatial extrapolation and bias
+correction framework, integrating Random Forest (RF) and Quantile
+Mapping (QM) in a multi-stage process to improve the accuracy of
+satellite precipitation estimates. The methodology consists of three key
+stages:</p>
+<ol style="list-style-type: decimal">
+<li><p><strong>Spatial Extrapolation of Precipitation:</strong> The
+first stage employs a Random Forest model to extrapolate the spatial
+distribution of precipitation. The model is trained using in-situ
+measurements as the response variable and a diverse set of satellite
+precipitation products and environmental covariates as predictors. This
+approach enables the generation of an initial precipitation field that
+extends observed precipitation patterns across unmonitored regions with
+high spatial flexibility, allowing applications at different temporal
+scales (e.g., daily, monthly, or annual).</p></li>
+<li><p><strong>Residual Correction through a Secondary RF
+Model:</strong> To enhance predictive accuracy, a second Random Forest
+model is trained to estimate residual errors from the initial
+predictions. The residuals are defined as the difference between
+observed and modeled precipitation values at station locations. By
+modeling these residuals as a function of the same covariates used in
+the first stage, systematic biases are identified and corrected
+iteratively. The corrected precipitation estimate is obtained by summing
+the residual predictions to the initial RF-based precipitation
+estimates, leading to a refined precipitation product with reduced bias
+and improved spatial coherence.</p></li>
+<li><p><strong>Bias Adjustment via Non-Parametric Quantile Mapping
+(QM):</strong> In the third stage, a nonparametric quantile mapping (QM)
+is applied to adapt the distribution of each time series to the in situ
+observations of the nearest station. The QM correction will be applied
+to those pixels that meet the proximity criterion, which states that
+only pixels within a predefined radius of influence (e.g., ≤15 km) are
+QM corrected.</p></li>
+</ol>
+<p>The RFplus package is designed to be highly adaptable and can be
+utilized across various satellite precipitation products and geographic
+regions. Although initially developed for precipitation bias correction,
+its methodology is applicable to other environmental variables such as
+temperature, wind speed, and soil moisture. This versatility makes
+RFplus a powerful tool for enhancing the accuracy of remote
+sensing-based estimations across diverse environmental conditions.</p>
+<div id="example-using-rfplus" class="section level2">
+<h2>Example using RFplus</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="co"># Load necessary libraries</span></span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="fu">library</span>(RFplus)</span></code></pre></div>
+<pre><code>## RFplus 1.4-0</code></pre>
+<pre><code>## Type RFplusNews() to see new features/changes/bug fixes.</code></pre>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">library</span>(terra)</span></code></pre></div>
+<pre><code>## terra 1.8.21</code></pre>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">library</span>(data.table)</span></code></pre></div>
+<pre><code>## 
+## Attaching package: &#39;data.table&#39;</code></pre>
+<pre><code>## The following object is masked from &#39;package:terra&#39;:
+## 
+##     shift</code></pre>
+</div>
+<div id="load-the-example-datasets" class="section level2">
+<h2>Load the example datasets</h2>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="co"># Load the in-situ data and the coordinates</span></span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;BD_Insitu&quot;</span>, <span class="at">package =</span> <span class="st">&quot;RFplus&quot;</span>)</span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;Cords_Insitu&quot;</span>, <span class="at">package =</span> <span class="st">&quot;RFplus&quot;</span>)</span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a></span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a><span class="co"># Load the covariates</span></span>
+<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a>MSWEP <span class="ot">=</span> terra<span class="sc">::</span><span class="fu">rast</span>(<span class="fu">system.file</span>(<span class="st">&quot;extdata/MSWEP.nc&quot;</span>, <span class="at">package =</span> <span class="st">&quot;RFplus&quot;</span>))</span>
+<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a>CHIRPS <span class="ot">=</span> terra<span class="sc">::</span><span class="fu">rast</span>(<span class="fu">system.file</span>(<span class="st">&quot;extdata/CHIRPS.nc&quot;</span>, <span class="at">package =</span> <span class="st">&quot;RFplus&quot;</span>))</span>
+<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a>DEM <span class="ot">=</span> terra<span class="sc">::</span><span class="fu">rast</span>(<span class="fu">system.file</span>(<span class="st">&quot;extdata/DEM.nc&quot;</span>, <span class="at">package =</span> <span class="st">&quot;RFplus&quot;</span>))</span></code></pre></div>
+</div>
+<div id="prepare-covariates-and-apply-rfplus" class="section level2">
+<h2>Prepare covariates and apply RFplus</h2>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="co"># Adjust individual covariates to the covariate format required by RFplus</span></span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>Covariates <span class="ot">=</span> <span class="fu">list</span>(<span class="at">MSWEP =</span> MSWEP, <span class="at">CHIRPS =</span> CHIRPS, <span class="at">DEM =</span> DEM)</span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a><span class="co"># Apply the RFplus -----------------------------------------------------------</span></span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a><span class="co"># 1. Define categories to categorize rainfall intensity</span></span>
+<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a>Rain_threshold <span class="ot">=</span> <span class="fu">list</span>(</span>
+<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a>  <span class="at">no_rain =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>),</span>
+<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a>  <span class="at">light_rain =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">5</span>),</span>
+<span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a>  <span class="at">moderate_rain =</span> <span class="fu">c</span>(<span class="dv">5</span>, <span class="dv">20</span>),</span>
+<span id="cb10-10"><a href="#cb10-10" tabindex="-1"></a>  <span class="at">heavy_rain =</span> <span class="fu">c</span>(<span class="dv">20</span>, <span class="dv">40</span>),</span>
+<span id="cb10-11"><a href="#cb10-11" tabindex="-1"></a>  <span class="at">violent_rain =</span> <span class="fu">c</span>(<span class="dv">40</span>, <span class="dv">100</span>)</span>
+<span id="cb10-12"><a href="#cb10-12" tabindex="-1"></a>)</span>
+<span id="cb10-13"><a href="#cb10-13" tabindex="-1"></a><span class="co"># 2. Apply de the model</span></span>
+<span id="cb10-14"><a href="#cb10-14" tabindex="-1"></a>model <span class="ot">=</span> <span class="fu">RFplus</span>(BD_Insitu, Cords_Insitu, Covariates, <span class="at">n_round =</span> <span class="dv">1</span>, <span class="at">wet.day =</span> <span class="fl">0.1</span> , <span class="at">ntree =</span> <span class="dv">2000</span>, <span class="at">seed =</span> <span class="dv">123</span>, <span class="at">training =</span> <span class="fl">0.8</span>, <span class="at">Rain_threshold =</span> Rain_threshold, <span class="at">method =</span> <span class="st">&quot;RQUANT&quot;</span>, <span class="at">ratio =</span> <span class="dv">5</span>, <span class="at">save_model =</span> <span class="cn">FALSE</span>, <span class="at">name_save =</span> <span class="cn">NULL</span></span>
+<span id="cb10-15"><a href="#cb10-15" tabindex="-1"></a>)</span></code></pre></div>
+<pre><code>## The training parameter has been introduced. The model will be trained with: 80 % data and validated with: 20 %</code></pre>
+<pre><code>## Analysis in progress: Stage 1 of 2. Please wait...</code></pre>
+<pre><code>## Analysis in progress: Stage 2 of 2. Correction by: RQUANT. Please wait...</code></pre>
+<pre><code>## Applying correction method. This may take a while...</code></pre>
+<pre><code>## Analysis completed.</code></pre>
+<pre><code>## Validation process in progress. Please wait.</code></pre>
+</div>
+<div id="visualize-the-results" class="section level2">
+<h2>Visualize the results</h2>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a><span class="co"># Precipitation results within the study area</span></span>
+<span id="cb17-2"><a href="#cb17-2" tabindex="-1"></a>modelo_rainfall <span class="ot">=</span> model<span class="sc">$</span>Ensamble</span>
+<span id="cb17-3"><a href="#cb17-3" tabindex="-1"></a></span>
+<span id="cb17-4"><a href="#cb17-4" tabindex="-1"></a><span class="co"># Validation statistic results </span></span>
+<span id="cb17-5"><a href="#cb17-5" tabindex="-1"></a><span class="co"># goodness-of-fit metrics</span></span>
+<span id="cb17-6"><a href="#cb17-6" tabindex="-1"></a>metrics_gof <span class="ot">=</span> model<span class="sc">$</span>Validation<span class="sc">$</span>gof</span>
+<span id="cb17-7"><a href="#cb17-7" tabindex="-1"></a></span>
+<span id="cb17-8"><a href="#cb17-8" tabindex="-1"></a><span class="co"># Categorical Metrics</span></span>
+<span id="cb17-9"><a href="#cb17-9" tabindex="-1"></a>metrics_categoricxal <span class="ot">=</span> model<span class="sc">$</span>Validation<span class="sc">$</span>categorical_metrics</span>
+<span id="cb17-10"><a href="#cb17-10" tabindex="-1"></a><span class="co"># Note: In the above example we used 80% of the data for training and 20% for model validation. </span></span></code></pre></div>
+</div>
+<div id="example-of-displaying-an-interpolated-layer" class="section level2">
+<h2>Example of displaying an interpolated layer</h2>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a><span class="co"># First layer of the QUANT method</span></span>
+<span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a><span class="fu">plot</span>(modelo_rainfall[[<span class="dv">1</span>]])</span></code></pre></div>
+<p><img role="img" src="data:image/png;base64,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" /><!-- --></p>
+</div>
+<div id="note" class="section level2">
+<h2>Note</h2>
+<p>The Rain_threshold parameter is used exclusively when performing
+point-to-pixel validation of the model. Its purpose is to classify
+rainfall values into different intensity categories, allowing the
+calculation of categorical performance metrics such as Probability of
+Detection (POD), False Alarm Rate (FAR), Critical Success Index (CSI),
+among others.</p>
+<p>This parameter should be defined as a list, where each category
+corresponds to a range of precipitation values. For example:</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a>Rain_threshold <span class="ot">=</span> <span class="fu">list</span>(</span>
+<span id="cb19-2"><a href="#cb19-2" tabindex="-1"></a>  <span class="at">no_rain =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>), <span class="co"># No precipitation</span></span>
+<span id="cb19-3"><a href="#cb19-3" tabindex="-1"></a>  <span class="at">light_rain =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">5</span>), <span class="co"># Light rainfall</span></span>
+<span id="cb19-4"><a href="#cb19-4" tabindex="-1"></a>  <span class="at">moderate_rain =</span> <span class="fu">c</span>(<span class="dv">5</span>, <span class="dv">20</span>), <span class="co"># Moderate rainfall</span></span>
+<span id="cb19-5"><a href="#cb19-5" tabindex="-1"></a>  <span class="at">heavy_rain =</span> <span class="fu">c</span>(<span class="dv">20</span>, <span class="dv">40</span>), <span class="co"># Heavy rainfall</span></span>
+<span id="cb19-6"><a href="#cb19-6" tabindex="-1"></a>  <span class="at">violent_rain =</span> <span class="fu">c</span>(<span class="dv">40</span>, <span class="dv">100</span>) <span class="co"># violent rain</span></span>
+<span id="cb19-7"><a href="#cb19-7" tabindex="-1"></a>)</span></code></pre></div>
+<p>This parameter should only be specified when training is different
+from 1, because in this case the algorithm performs a validation of the
+results.</p>
+<p>When training = 1, the model trains with 100% of the available data
+and does not perform validation, so Rain_threshold is not used.</p>
+<p>Finally, the user has full flexibility to define one or more
+categories as he/she deems appropriate, which allows to adapt the
+classification of precipitation events to different regions.</p>
+</div>
+<div id="conclusion" class="section level2">
+<h2>Conclusion</h2>
+<p>The RFplus method improves satellite rainfall estimates by correcting
+for biases through machine learning (Random Forest) and statistical
+distribution fitting (Quantile Mapping). By applying these corrections,
+RFplus ensures that satellite data not only aligns with observed data in
+terms of mean values, but also in terms of the underlying distribution,
+which is particularly useful for accurately capturing extreme weather
+events such as heavy precipitation. The flexibility of RFplus allows its
+application to a wide range of satellite data products beyond
+precipitation, including temperature and wind speed, making it a
+versatile tool for extrapolation where weather stations are not
+available.</p>
+</div>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

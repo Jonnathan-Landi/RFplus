@@ -1,0 +1,193 @@
+
+R version 4.4.2 (2024-10-31 ucrt) -- "Pile of Leaves"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> pkgname <- "RFplus"
+> source(file.path(R.home("share"), "R", "examples-header.R"))
+> options(warn = 1)
+> options(pager = "console")
+> base::assign(".ExTimings", "RFplus-Ex.timings", pos = 'CheckExEnv')
+> base::cat("name\tuser\tsystem\telapsed\n", file=base::get(".ExTimings", pos = 'CheckExEnv'))
+> base::assign(".format_ptime",
++ function(x) {
++   if(!is.na(x[4L])) x[1L] <- x[1L] + x[4L]
++   if(!is.na(x[5L])) x[2L] <- x[2L] + x[5L]
++   options(OutDec = '.')
++   format(x[1L:3L], digits = 7L)
++ },
++ pos = 'CheckExEnv')
+> 
+> ### * </HEADER>
+> library('RFplus')
+RFplus 1.4-0
+Type RFplusNews() to see new features/changes/bug fixes.
+> 
+> base::assign(".oldSearch", base::search(), pos = 'CheckExEnv')
+> base::assign(".old_wd", base::getwd(), pos = 'CheckExEnv')
+> cleanEx()
+> nameEx("BD_Insitu")
+> ### * BD_Insitu
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: BD_Insitu
+> ### Title: Precipitation Station Measurement Dataset
+> ### Aliases: BD_Insitu
+> ### Keywords: datasets
+> 
+> ### ** Examples
+> 
+> data(BD_Insitu)
+> ## You can use str(BD_Insitu) to get a description of the structure
+> ## or view some of the first rows using head(BD_Insitu)
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("BD_Insitu", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("Cords_Insitu")
+> ### * Cords_Insitu
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: Cords_Insitu
+> ### Title: Precipitation Station Coordinates Dataset
+> ### Aliases: Cords_Insitu
+> ### Keywords: datasets
+> 
+> ### ** Examples
+> 
+> data(Cords_Insitu)
+> ## You can use str(Cords_Insitu) to get a description of the structure
+> ## or view some of the first rows using head(Cords_Insitu)
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("Cords_Insitu", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("RFplus")
+> ### * RFplus
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: RFplus
+> ### Title: Machine learning algorithm for fusing ground and satellite
+> ###   precipitation data.
+> ### Aliases: RFplus RFplus.default RFplus.data.table
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> # Load the libraries
+> library(terra)
+terra 1.8.21
+> library(data.table)
+
+Attaching package: 'data.table'
+
+The following object is masked from 'package:terra':
+
+    shift
+
+> 
+> # Load the data
+>  data("BD_Insitu", package = "RFplus")
+>  data("Cords_Insitu", package = "RFplus")
+> 
+> # Load the covariates
+> Covariates <- list(
++  MSWEP = terra::rast(system.file("extdata/MSWEP.nc", package = "RFplus")),
++  CHIRPS = terra::rast(system.file("extdata/CHIRPS.nc", package = "RFplus")),
++  DEM = terra::rast(system.file("extdata/DEM.nc", package = "RFplus"))
++  )
+> 
+>  # Apply the RFplus bias correction model
+> model = RFplus(BD_Insitu, Cords_Insitu, Covariates, n_round = 1, wet.day = 0.1,
++         ntree = 2000, seed = 123, training = 1, Rain_threshold = 0.1, method = "RQUANT",
++         ratio = 5, save_model = FALSE, name_save = NULL)
+The training parameter was not entered. The model will be trained with all the data.
+Analysis in progress: Stage 1 of 2. Please wait...
+  |                                                  | 0 % elapsed=00s     |=                                                 | 2 % elapsed=01s, remaining~34s  |==                                                | 3 % elapsed=01s, remaining~28s  |===                                               | 5 % elapsed=01s, remaining~25s  |====                                              | 7 % elapsed=02s, remaining~24s  |=====                                             | 8 % elapsed=02s, remaining~23s  |=====                                             | 10% elapsed=02s, remaining~22s  |======                                            | 12% elapsed=03s, remaining~22s  |=======                                           | 13% elapsed=03s, remaining~21s  |========                                          | 15% elapsed=04s, remaining~21s  |=========                                         | 17% elapsed=04s, remaining~20s  |==========                                        | 18% elapsed=04s, remaining~20s  |==========                                        | 20% elapsed=05s, remaining~19s  |===========                                       | 22% elapsed=05s, remaining~19s  |============                                      | 23% elapsed=06s, remaining~18s  |=============                                     | 25% elapsed=06s, remaining~18s  |==============                                    | 27% elapsed=06s, remaining~18s  |===============                                   | 28% elapsed=07s, remaining~17s  |===============                                   | 30% elapsed=07s, remaining~17s  |================                                  | 32% elapsed=08s, remaining~17s  |=================                                 | 33% elapsed=08s, remaining~16s  |==================                                | 35% elapsed=08s, remaining~16s  |===================                               | 37% elapsed=09s, remaining~15s  |====================                              | 38% elapsed=09s, remaining~15s  |====================                              | 40% elapsed=10s, remaining~14s  |=====================                             | 42% elapsed=10s, remaining~14s  |======================                            | 43% elapsed=10s, remaining~14s  |=======================                           | 45% elapsed=11s, remaining~13s  |========================                          | 47% elapsed=11s, remaining~13s  |=========================                         | 48% elapsed=12s, remaining~12s  |=========================                         | 50% elapsed=12s, remaining~12s  |==========================                        | 52% elapsed=12s, remaining~12s  |===========================                       | 53% elapsed=13s, remaining~11s  |============================                      | 55% elapsed=13s, remaining~11s  |=============================                     | 57% elapsed=13s, remaining~10s  |==============================                    | 58% elapsed=14s, remaining~10s  |==============================                    | 60% elapsed=14s, remaining~09s  |===============================                   | 62% elapsed=15s, remaining~09s  |================================                  | 63% elapsed=15s, remaining~09s  |=================================                 | 65% elapsed=15s, remaining~08s  |==================================                | 67% elapsed=16s, remaining~08s  |===================================               | 68% elapsed=16s, remaining~08s  |===================================               | 70% elapsed=17s, remaining~07s  |====================================              | 72% elapsed=17s, remaining~07s  |=====================================             | 73% elapsed=18s, remaining~06s  |======================================            | 75% elapsed=18s, remaining~06s  |=======================================           | 77% elapsed=18s, remaining~06s  |========================================          | 78% elapsed=19s, remaining~05s  |========================================          | 80% elapsed=19s, remaining~05s  |=========================================         | 82% elapsed=19s, remaining~04s  |==========================================        | 83% elapsed=20s, remaining~04s  |===========================================       | 85% elapsed=20s, remaining~04s  |============================================      | 87% elapsed=21s, remaining~03s  |=============================================     | 88% elapsed=21s, remaining~03s  |=============================================     | 90% elapsed=21s, remaining~02s  |==============================================    | 92% elapsed=22s, remaining~02s  |===============================================   | 93% elapsed=22s, remaining~02s  |================================================  | 95% elapsed=23s, remaining~01s  |================================================= | 97% elapsed=23s, remaining~01s  |==================================================| 98% elapsed=23s, remaining~00s  |==================================================| 100% elapsed=24s, remaining~00s
+Analysis in progress: Stage 2 of 2. Correction by: RQUANT. Please wait...
+Warning in min(x) : no non-missing arguments to min; returning Inf
+Warning in max(x) : no non-missing arguments to max; returning -Inf
+Warning in min(x) : no non-missing arguments to min; returning Inf
+Warning in max(x) : no non-missing arguments to max; returning -Inf
+Warning in min(x) : no non-missing arguments to min; returning Inf
+Warning in max(x) : no non-missing arguments to max; returning -Inf
+Warning in min(x) : no non-missing arguments to min; returning Inf
+Warning in max(x) : no non-missing arguments to max; returning -Inf
+Warning in min(x) : no non-missing arguments to min; returning Inf
+Warning in max(x) : no non-missing arguments to max; returning -Inf
+Warning in min(x) : no non-missing arguments to min; returning Inf
+Warning in max(x) : no non-missing arguments to max; returning -Inf
+Warning in min(x) : no non-missing arguments to min; returning Inf
+Warning in max(x) : no non-missing arguments to max; returning -Inf
+Warning in min(x) : no non-missing arguments to min; returning Inf
+Warning in max(x) : no non-missing arguments to max; returning -Inf
+Warning in min(x) : no non-missing arguments to min; returning Inf
+Warning in max(x) : no non-missing arguments to max; returning -Inf
+Warning in min(x) : no non-missing arguments to min; returning Inf
+Warning in max(x) : no non-missing arguments to max; returning -Inf
+Warning in min(x) : no non-missing arguments to min; returning Inf
+Warning in max(x) : no non-missing arguments to max; returning -Inf
+Warning in min(x) : no non-missing arguments to min; returning Inf
+Warning in max(x) : no non-missing arguments to max; returning -Inf
+Applying correction method. This may take a while...
+  |                                                  | 0 % elapsed=00s     |=                                                 | 1 % elapsed=00s, remaining~01s  |==                                                | 2 % elapsed=00s, remaining~01s  |==                                                | 4 % elapsed=00s, remaining~01s  |===                                               | 5 % elapsed=00s, remaining~01s  |===                                               | 6 % elapsed=00s, remaining~01s  |====                                              | 7 % elapsed=00s, remaining~01s  |=====                                             | 8 % elapsed=00s, remaining~01s  |=====                                             | 10% elapsed=00s, remaining~01s  |======                                            | 11% elapsed=00s, remaining~01s  |======                                            | 12% elapsed=00s, remaining~01s  |=======                                           | 13% elapsed=00s, remaining~01s  |========                                          | 14% elapsed=00s, remaining~01s  |========                                          | 15% elapsed=00s, remaining~01s  |=========                                         | 17% elapsed=00s, remaining~01s  |=========                                         | 18% elapsed=00s, remaining~01s  |==========                                        | 19% elapsed=00s, remaining~01s  |===========                                       | 20% elapsed=00s, remaining~01s  |===========                                       | 21% elapsed=00s, remaining~01s  |============                                      | 23% elapsed=00s, remaining~01s  |============                                      | 24% elapsed=00s, remaining~01s  |=============                                     | 25% elapsed=00s, remaining~01s  |==============                                    | 26% elapsed=00s, remaining~01s  |==============                                    | 27% elapsed=00s, remaining~01s  |===============                                   | 29% elapsed=00s, remaining~01s  |===============                                   | 30% elapsed=00s, remaining~01s  |================                                  | 31% elapsed=00s, remaining~01s  |=================                                 | 32% elapsed=00s, remaining~01s  |=================                                 | 33% elapsed=00s, remaining~01s  |==================                                | 35% elapsed=00s, remaining~01s  |==================                                | 36% elapsed=00s, remaining~01s  |===================                               | 37% elapsed=00s, remaining~01s  |====================                              | 38% elapsed=00s, remaining~01s  |====================                              | 39% elapsed=00s, remaining~01s  |=====================                             | 40% elapsed=01s, remaining~01s  |=====================                             | 42% elapsed=01s, remaining~01s  |======================                            | 43% elapsed=01s, remaining~01s  |=======================                           | 44% elapsed=01s, remaining~01s  |=======================                           | 45% elapsed=01s, remaining~01s  |========================                          | 46% elapsed=01s, remaining~01s  |========================                          | 48% elapsed=01s, remaining~01s  |=========================                         | 49% elapsed=01s, remaining~01s  |=========================                         | 50% elapsed=01s, remaining~01s  |==========================                        | 51% elapsed=01s, remaining~01s  |===========================                       | 52% elapsed=01s, remaining~01s  |===========================                       | 54% elapsed=01s, remaining~01s  |============================                      | 55% elapsed=01s, remaining~01s  |============================                      | 56% elapsed=01s, remaining~01s  |=============================                     | 57% elapsed=01s, remaining~01s  |==============================                    | 58% elapsed=01s, remaining~01s  |==============================                    | 60% elapsed=01s, remaining~01s  |===============================                   | 61% elapsed=01s, remaining~01s  |===============================                   | 62% elapsed=01s, remaining~00s  |================================                  | 63% elapsed=01s, remaining~00s  |=================================                 | 64% elapsed=01s, remaining~00s  |=================================                 | 65% elapsed=01s, remaining~00s  |==================================                | 67% elapsed=01s, remaining~00s  |==================================                | 68% elapsed=01s, remaining~00s  |===================================               | 69% elapsed=01s, remaining~00s  |====================================              | 70% elapsed=01s, remaining~00s  |====================================              | 71% elapsed=01s, remaining~00s  |=====================================             | 73% elapsed=01s, remaining~00s  |=====================================             | 74% elapsed=01s, remaining~00s  |======================================            | 75% elapsed=01s, remaining~00s  |=======================================           | 76% elapsed=01s, remaining~00s  |=======================================           | 77% elapsed=01s, remaining~00s  |========================================          | 79% elapsed=01s, remaining~00s  |========================================          | 80% elapsed=01s, remaining~00s  |=========================================         | 81% elapsed=01s, remaining~00s  |==========================================        | 82% elapsed=01s, remaining~00s  |==========================================        | 83% elapsed=01s, remaining~00s  |===========================================       | 85% elapsed=01s, remaining~00s  |===========================================       | 86% elapsed=01s, remaining~00s  |============================================      | 87% elapsed=01s, remaining~00s  |=============================================     | 88% elapsed=01s, remaining~00s  |=============================================     | 89% elapsed=01s, remaining~00s  |==============================================    | 90% elapsed=01s, remaining~00s  |==============================================    | 92% elapsed=01s, remaining~00s  |===============================================   | 93% elapsed=01s, remaining~00s  |================================================  | 94% elapsed=01s, remaining~00s  |================================================  | 95% elapsed=01s, remaining~00s  |================================================= | 96% elapsed=01s, remaining~00s  |================================================= | 98% elapsed=01s, remaining~00s  |==================================================| 99% elapsed=01s, remaining~00s  |==================================================| 100% elapsed=01s, remaining~00s
+Analysis completed.
+> # Visualize the results
+> # Precipitation results within the study area
+> modelo_rainfall = model$Ensamble
+> # Validation statistic results
+> # goodness-of-fit metrics
+> metrics_gof = model$Validation$gof
+> 
+> # categorical metrics
+> metrics_cat = model$Validation$categorical_metrics
+> # Note: In the above example we used 80% of the data for training and 20% for # model validation.
+> ## End(No test)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("RFplus", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> ### * <FOOTER>
+> ###
+> cleanEx()
+
+detaching 'package:data.table', 'package:terra'
+
+> options(digits = 7L)
+> base::cat("Time elapsed: ", proc.time() - base::get("ptime", pos = 'CheckExEnv'),"\n")
+Time elapsed:  29.75 1.66 31.44 NA NA 
+> grDevices::dev.off()
+null device 
+          1 
+> ###
+> ### Local variables: ***
+> ### mode: outline-minor ***
+> ### outline-regexp: "\\(> \\)?### [*]+" ***
+> ### End: ***
+> quit('no')

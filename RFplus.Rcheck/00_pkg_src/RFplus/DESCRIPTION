@@ -1,0 +1,32 @@
+Package: RFplus
+Type: Package
+Title: Machine Learning for Merging Satellite and Ground Precipitation
+        Data
+Version: 1.4-0
+Date: 2025-03-15
+Encoding: UTF-8
+Authors@R: c(person("Jonnathan Augusto", "Landi Bermeo", email = "jonnathan.landi@outlook.com",
+                  role = c("aut", "cre", "cph"), comment = c(ORCID = "0009-0003-3162-6647")),
+                  person("Alex", "Avilés", role = "aut", comment = c(ORCID = "0000-0001-9278-5738")),
+                  person("Darío", "Zhiña", role = "aut", comment = c(ORCID = "0000-0001-9556-4025")),
+                  person("Marco", "Mogro", role = "aut", comment = c(ORCID = "0009-0007-1802-9417")))
+Maintainer: Jonnathan Augusto Landi Bermeo <jonnathan.landi@outlook.com>
+Description: A machine learning algorithm that merges satellite and ground precipitation data using Random Forest for spatial prediction, residual modeling for bias correction, and quantile mapping for adjustment, ensuring accurate estimates across temporal scales and regions.
+License: GPL (>=3)
+Depends: R (>= 4.4.0)
+Imports: terra, randomForest, data.table, pbapply, qmap, hydroGOF
+URL: https://github.com/Jonnathan-Landi/RFplus
+BugReports: https://github.com/Jonnathan-Landi/RFplus/issues
+NeedsCompilation: no
+Repository: CRAN
+Date/Publication: 2025-02-04 10:10:00 UTC
+RoxygenNote: 7.3.2
+Suggests: knitr, rmarkdown, testthat (>= 3.0.0), covr
+Config/testthat/edition: 3
+VignetteBuilder: knitr
+Packaged: 2025-03-02 00:25:52 UTC; Jonna
+Author: Jonnathan Augusto Landi Bermeo [aut, cre, cph]
+    (<https://orcid.org/0009-0003-3162-6647>),
+  Alex Avilés [aut] (<https://orcid.org/0000-0001-9278-5738>),
+  Darío Zhiña [aut] (<https://orcid.org/0000-0001-9556-4025>),
+  Marco Mogro [aut] (<https://orcid.org/0009-0007-1802-9417>)
