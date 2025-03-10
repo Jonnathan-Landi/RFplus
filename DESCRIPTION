@@ -8,7 +8,8 @@ Authors@R:c(person("Jonnathan Augusto", "Landi Bermeo", email = "jonnathan.landi
                   role = c("aut", "cre", "cph"), comment = c(ORCID = "0009-0003-3162-6647")),
                   person("Alex", "Avilés", role = "aut", comment = c(ORCID = "0000-0001-9278-5738")),
                   person("Darío", "Zhiña", role = "aut", comment = c(ORCID = "0000-0001-9556-4025")),
-                  person("Marco", "Mogro", role = "aut", comment = c(ORCID = "0009-0007-1802-9417")))
+                  person("Marco", "Mogro", role = "aut", comment = c(ORCID = "0009-0007-1802-9417")),
+                  person("Anthony", "Guamán", role = "aut", comment = c(ORCID = "0009-0005-0204-7536")))
 Maintainer: Jonnathan Augusto Landi Bermeo <jonnathan.landi@outlook.com>
 Description: A machine learning algorithm that merges satellite and ground precipitation data using Random Forest for spatial prediction, residual modeling for bias correction, and quantile mapping for adjustment, ensuring accurate estimates across temporal scales and regions.
 License: GPL (>=3)
