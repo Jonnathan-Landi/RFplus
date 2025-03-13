@@ -48,9 +48,17 @@ Each column represents a ground station, and station identifiers are stored as c
 must be `data.table`. Each row represents a time step with measurements of the corresponding station.}
 
 \item{Cords_Insitu}{`data.table` containing metadata for the ground stations. Must include the following columns:
-- `Cod`: Unique identifier for each ground station.
-- `X`: Latitude of the station in UTM format.
-- `Y`: Longitude of the station in UTM format.}
+- \code{"Cod"}:
+   Unique identifier for each ground station.
+
+- \code{"X"}:
+   Latitude of the station in UTM format.
+
+- \code{"Y"}:
+   Longitude of the station in UTM format.
+
+- \code{"Z"}:
+  Altitude of the station in meters.}
 
 \item{Covariates}{A list of covariates used as independent variables in the RFplus model. Each covariate should be a
 `SpatRaster` object (from the `terra` package) and can represent satellite-derived weather variables or a Digital
@@ -167,17 +175,23 @@ Covariates <- list(
 
  # Apply the RFplus bias correction model
 model = RFplus(BD_Insitu, Cords_Insitu, Covariates, n_round = 1, wet.day = 0.1,
-        ntree = 2000, seed = 123, training = 1, Rain_threshold = 0.1, method = "RQUANT",
-        ratio = 5, save_model = FALSE, name_save = NULL)
+        ntree = 2000, seed = 123, training = 1, Rain_threshold = list(no_rain = c(0, 1), light_rain = c(1, 5),
+                                                                      moderate_rain = c(5, 20), heavy_rain = c(20, 40),
+                                                                      violent_rain = c(40, Inf)),
+        method = "RQUANT", ratio = 10, save_model = FALSE, name_save = NULL)
+
 # Visualize the results
+
 # Precipitation results within the study area
 modelo_rainfall = model$Ensamble
+
 # Validation statistic results
 # goodness-of-fit metrics
 metrics_gof = model$Validation$gof
 
 # categorical metrics
 metrics_cat = model$Validation$categorical_metrics
+
 # Note: In the above example we used 80\% of the data for training and 20\% for # model validation.
 }
 

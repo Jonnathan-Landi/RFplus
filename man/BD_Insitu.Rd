@@ -11,7 +11,7 @@ This dataset contains daily measurements from several precipitation stations. Th
 \format{
   A `data.table` object with station measurements. The dataset includes the following columns:
   \describe{
-    \item{\code{Date}}{The measurement date (type \code{Date}).}
+    \item{\code{Date}}{The measurement date in \code{Year-Month-Day} format (type \code{Date} or \code{IDate}). When the data includes \code{Year-Month-Day Hour:Minute:Second}, make sure the data is of type \code{POSIXct}.}
     \item{\code{Station_ID_1, Station_ID_2, ...}}{Measurements from the stations (numeric values). Each column after \code{Date} represents the measurements of a precipitation station for the corresponding date. The columns are labeled with unique identifiers (e.g., \code{Station_ID_1}, \code{Station_ID_2}, etc.) for each station, and the number of stations (columns) may vary.}
   }
 }
