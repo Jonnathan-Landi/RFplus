@@ -1,5 +1,5 @@
 # Declare global variables to prevent R CMD check warnings
-utils::globalVariables(c("Cod", "ID", "X", "Y", "Date", "Obs", "sim", "residuals",
+utils::globalVariables(c("Cod", "ID", "X", "Y", "Z","Date", "Obs", "sim", "residuals",
                          "var", ".", ".SD", "observed","estimated", "copy", ".N", "Sim"))
 #' Machine learning algorithm for fusing ground and satellite precipitation data.
 #'
@@ -25,9 +25,18 @@ utils::globalVariables(c("Cod", "ID", "X", "Y", "Date", "Obs", "sim", "residuals
 #'   Each column represents a ground station, and station identifiers are stored as column names. The class of `BD_Insitu`
 #'   must be `data.table`. Each row represents a time step with measurements of the corresponding station.
 #' @param Cords_Insitu `data.table` containing metadata for the ground stations. Must include the following columns:
-#'   - `Cod`: Unique identifier for each ground station.
-#'   - `X`: Latitude of the station in UTM format.
-#'   - `Y`: Longitude of the station in UTM format.
+#' - \code{"Cod"}:
+#'    Unique identifier for each ground station.
+#'
+#' - \code{"X"}:
+#'    Latitude of the station in UTM format.
+#'
+#' - \code{"Y"}:
+#'    Longitude of the station in UTM format.
+#'
+#' - \code{"Z"}:
+#'   Altitude of the station in meters.
+#'
 #' @param Covariates A list of covariates used as independent variables in the RFplus model. Each covariate should be a
 #'   `SpatRaster` object (from the `terra` package) and can represent satellite-derived weather variables or a Digital
 #'    Elevation Model (DEM). All covariates should have the same number of layers (bands), except for the DEM, which must have only one layer.
@@ -81,17 +90,23 @@ utils::globalVariables(c("Cod", "ID", "X", "Y", "Date", "Obs", "sim", "residuals
 #'
 #'  # Apply the RFplus bias correction model
 #' model = RFplus(BD_Insitu, Cords_Insitu, Covariates, n_round = 1, wet.day = 0.1,
-#'         ntree = 2000, seed = 123, training = 1, Rain_threshold = 0.1, method = "RQUANT",
-#'         ratio = 5, save_model = FALSE, name_save = NULL)
+#'         ntree = 2000, seed = 123, training = 1, Rain_threshold = list(no_rain = c(0, 1), light_rain = c(1, 5),
+#'                                                                       moderate_rain = c(5, 20), heavy_rain = c(20, 40),
+#'                                                                       violent_rain = c(40, Inf)),
+#'         method = "RQUANT", ratio = 10, save_model = FALSE, name_save = NULL)
+#'
 #' # Visualize the results
+#'
 #' # Precipitation results within the study area
 #' modelo_rainfall = model$Ensamble
+#'
 #' # Validation statistic results
 #' # goodness-of-fit metrics
 #' metrics_gof = model$Validation$gof
 #'
 #' # categorical metrics
 #' metrics_cat = model$Validation$categorical_metrics
+#'
 #' # Note: In the above example we used 80% of the data for training and 20% for # model validation.
 #' }
 #'
@@ -334,6 +349,7 @@ RFplus.data.table <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NUL
   ##############################################################################
   # Layer to sample
   Sample_lyrs <- DEM[[1]]
+  layer_0 = Covariates$DEM[[1]] * 0 # Layer when there is no precipitation.
 
   # Data for training
   training_data <- melt(
@@ -348,7 +364,7 @@ RFplus.data.table <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NUL
   Points_Train <- merge(training_data, train_cords, by = "Cod")
   setDT(Points_Train)
 
-  Points_Train <- unique(Points_Train, by = "Cod")[, .(ID, Cod, X, Y)]
+  Points_Train <- unique(Points_Train, by = "Cod")[, .(ID, Cod, X, Y, Z)]
   setorder(Points_Train, ID)
 
   Points_VectTrain <- terra::vect(Points_Train, geom = c("X", "Y"), crs = crs(Sample_lyrs))
@@ -363,7 +379,12 @@ RFplus.data.table <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NUL
     Covariates$DEM[[1]] - terra::extract(Covariates$DEM[[1]], Points_VectTrain[i, ])[, 2]
   }), Points_VectTrain$Cod)
 
-
+  # Calculate the difference in altitude
+  difference_altitude <- setNames(lapply(1:nrow(Points_VectTrain), function(i) {
+    z_station = Points_VectTrain$Z[i]
+    diff_alt = Sample_lyrs - z_station
+    return(diff_alt)
+  }), Points_VectTrain$Cod)
   ##############################################################################
   ##############################################################################
   #                    Progressive correction methodology                      #
@@ -388,11 +409,11 @@ RFplus.data.table <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NUL
     points_EstTrain <- terra::vect(points_EstTrain, geom = c("X", "Y"), crs = crs(Sample_lyrs))
 
     # Covariates extras
-    day_COV$dist_ED <- terra::rast(distance_ED[Points_Train$Cod])
-    names(day_COV$dist_ED) = paste("dist_ED_", seq_along(Points_Train$Cod), sep = "")
+    day_COV$dist_ED <- terra::rast(distance_ED[points_EstTrain$Cod])
+    names(day_COV$dist_ED) = paste("dist_ED_", seq_along(points_EstTrain$Cod), sep = "")
 
-    day_COV$diff_alt <- terra::rast(difference_altitude[Points_Train$Cod])
-    names(day_COV$diff_alt) = paste("diff_alt_", seq_along(Points_Train$Cod), sep = "")
+    day_COV$diff_alt <- terra::rast(difference_altitude[points_EstTrain$Cod])
+    names(day_COV$diff_alt) = paste("diff_alt_", seq_along(points_EstTrain$Cod), sep = "")
 
     #                   Training the model Random Forest (1)                   #
     data_cov <- Reduce(function(x, y) merge(x, y, by = "ID", all = TRUE),
@@ -406,55 +427,61 @@ RFplus.data.table <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NUL
 
     dt.train <- dt.train[, setdiff(names(dt.train), "Date"), with = FALSE]
 
-    # Train Model 1
-    set.seed(seed)
-    Model_P1 <- suppressWarnings(
-      randomForest::randomForest(
-        formula = var ~ .,
-        data = dt.train[, setdiff(names(dt.train), "ID"), with = FALSE],
+    # If the sum of var is 0, I assume that there is no precipitation in the whole basin.
+    if (sum(dt.train$var, na.rm = TRUE) == 0) {
+      Ensamble <- layer_0 # No precipitation
+    } else {
+      set.seed(seed)
+      Model_P1 <- suppressWarnings(
+        randomForest::randomForest(
+          formula = var ~ .,
+          data = dt.train[, setdiff(names(dt.train), "ID"), with = FALSE],
+          ntree = ntree,
+          na.action = stats::na.omit
+        )
+      )
+
+      #                 Training the model Random Forest (2)                   #
+      # Prediction of the Model 1
+      val_P1 <- dt.train[, .(ID, Obs = var, sim = predict(Model_P1, .SD, na.rm = TRUE)), .SDcols = !"ID"]
+      # val_p3 <- dt.train[, .(ID, Obs = var, sim = predict(Model_P1, .SD, na.rm = TRUE)), .SDcols = !"ID"]
+      val_P1[, residuals := Obs - sim]
+
+      dt.train_resi <- data.table(
+        residuals = val_P1$residuals,
+        dt.train[, setdiff(names(dt.train), c("ID", "var")), with = FALSE]
+      )
+
+      # Train Model 2
+      Model_P2 <- suppressWarnings(randomForest::randomForest(
+        formula = residuals ~ .,
+        data = dt.train_resi,
         ntree = ntree,
         na.action = stats::na.omit
       )
-    )
-
-    #                   Training the model Random Forest (2)                   #
-    # Prediction of the Model 1
-    val_P1 <- dt.train[, .(ID, Obs = var, sim = predict(Model_P1, .SD, na.rm = TRUE)), .SDcols = !"ID"]
-    val_P1[, residuals := Obs - sim]
-
-    dt.train_resi <- data.table(
-      residuals = val_P1$residuals,
-      dt.train[, setdiff(names(dt.train), c("ID", "var")), with = FALSE]
-    )
-
-    # Train Model 2
-    Model_P2 <- suppressWarnings(randomForest::randomForest(
-      formula = residuals ~ .,
-      data = dt.train_resi,
-      ntree = ntree,
-      na.action = stats::na.omit
-    )
-    )
-    # Create the corrected model 1
-    cov_Sat <- terra::rast(day_COV)
-    Ensamble <- predict(cov_Sat, Model_P1, na.rm = TRUE, fun = predict) +
-      predict(cov_Sat, Model_P2, na.rm = TRUE, fun = predict)
-
-    # Extra operations in case they have been established
-    if (!is.null(n_round)) Ensamble <- terra::app(Ensamble, function(x) round(x, n_round))
-    if (wet.day != FALSE) Ensamble <- terra::app(Ensamble, function(x) ifelse(x < wet.day, 0, x))
+      )
+      # Create the corrected model 1
+      cov_Sat <- terra::rast(day_COV)
+      Ensamble <- predict(cov_Sat, Model_P1, na.rm = TRUE, fun = predict) +
+        predict(cov_Sat, Model_P2, na.rm = TRUE, fun = predict)
+      # Extra operations in case they have been established
+      if (!is.null(n_round)) Ensamble <- terra::app(Ensamble, function(x) round(x, n_round))
+      if (wet.day != FALSE) Ensamble <- terra::app(Ensamble, function(x) ifelse(x < wet.day, 0, x))
+    } # End of the if statement
     return(Ensamble)
   }
 
+  # Run the model
   pbapply::pboptions(type = "timer", use_lb = T, style = 1, char = "=")
   message("Analysis in progress: Stage 1 of 2. Please wait...")
-
   raster_Model <- pbapply::pblapply(Dates_extracted, function(fecha) {
     day_COV <- lapply(Covariates, function(x) x[[match(fecha, Dates_extracted)]])
     RF_Modelplus(day_COV, fecha)
   })
 
   Ensamble <- terra::rast(raster_Model)
+  if (!is.null(n_round)) Ensamble <- terra::app(Ensamble, \(x) round(x, n_round))
+
   # Model of the QM or QDM correction ------------------------------------------
   if (method == "none") {
     message("Analysis completed, QUANT or RQUANT correction phase not applied.")
@@ -474,7 +501,7 @@ RFplus.data.table <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NUL
 
     data_CM <- data.table(t(data_CM[, -1]))
     colnames(data_CM) <- names
-    data_CM <- data.table(training_data[,.(Date)], data_CM)
+    data_CM <- data.table(data.table(Date = Dates_extracted), data_CM)
 
     common_columns <- setdiff(names(data_CM), c("ID", "Date"))
 
@@ -503,9 +530,11 @@ RFplus.data.table <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NUL
       cuantiles <- lapply(res_interpolation, function(x) method_fun(x$Obs, x$Sim, method = method, wet.day = wet.day))
       message("Applying correction method. This may take a while...")
 
-      dat_final <- pbapply::pblapply(seq_len(nrow(data_complete)), function(i) {
+      dat_final <- pblapply(seq_len(nrow(data_complete)), function(i) {
         x <- data_complete[i, x]
         y <- data_complete[i, y]
+
+        Points_VectTrain
 
         distances <- terra::distance(
           terra::vect(data.table(x, y), geom = c("x", "y"), crs = crs(Sample_lyrs)),
@@ -530,10 +559,11 @@ RFplus.data.table <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NUL
       rbindlist(dat_final)
     }
 
-    dat_final <- if (method == "QUANT") {
-      process_data(fitQmapQUANT, doQmapQUANT)
+    # Apply the correction method
+    if (method == "QUANT") {
+      dat_final = process_data(method_fun = fitQmapQUANT, doQmap_fun = doQmapQUANT)
     } else {
-      process_data(method_fun = fitQmapRQUANT, doQmap_fun = doQmapRQUANT)
+      dat_final <- process_data(method_fun = fitQmapRQUANT, doQmap_fun = doQmapRQUANT)
     }
 
     Ensamble <- terra::rast(dat_final, crs = crs(Sample_lyrs))
@@ -594,7 +624,7 @@ RFplus.data.table <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NUL
   #                           Save the model if necessary                      #
   ##############################################################################
   if (save_model) {
-    message("Saving model. Please wait.")
+    message("Model saved successfully")
     if (is.null(name_save)) name_save = "Model_RFplus"
     name_saving <- paste0(name_save, ".nc")
     terra::writeCDF(Ensamble, filename = name_saving, overwrite=TRUE)
