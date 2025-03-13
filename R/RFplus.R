@@ -90,11 +90,9 @@ utils::globalVariables(c("Cod", "ID", "X", "Y", "Z","Date", "Obs", "sim", "resid
 #'
 #'  # Apply the RFplus bias correction model
 #' model = RFplus(BD_Insitu, Cords_Insitu, Covariates, n_round = 1, wet.day = 0.1,
-#'         ntree = 2000, seed = 123, training = 1, Rain_threshold = list(no_rain = c(0, 1), light_rain = c(1, 5),
-#'                                                                       moderate_rain = c(5, 20), heavy_rain = c(20, 40),
-#'                                                                       violent_rain = c(40, Inf)),
+#'         ntree = 2000, seed = 123, training = 1,
+#'         Rain_threshold = list(no_rain = c(0, 1), light_rain = c(1, 5)),
 #'         method = "RQUANT", ratio = 10, save_model = FALSE, name_save = NULL)
-#'
 #' # Visualize the results
 #'
 #' # Precipitation results within the study area
@@ -118,7 +116,7 @@ utils::globalVariables(c("Cod", "ID", "X", "Y", "Z","Date", "Obs", "sim", "resid
 #'   light_rain = c(1, 5),
 #'   moderate_rain = c(5, 20),
 #'   heavy_rain = c(20, 40),
-#'   violent_rain = c(40, 100)
+#'   violent_rain = c(40, Inf)
 #' )}
 #'
 #' Precipitation values will be classified into these categories based on their intensity.
