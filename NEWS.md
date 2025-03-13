@@ -1,3 +1,19 @@
+# Version 1.5-2 (CRAN)
+
+#### ***Expected Release Date:*** 2025-04-01
+
+### New Features
+
+-   We update the “exdata” data to adapt it to the new RFplus changes.
+-   We have optimized the core of the RFplus algorithm to reduce the computation time.
+-   When the parameter 'save_model' is set to TRUE the message 'Saving model. Please wait'. To improve readability we have modified this message to: 'Model saved successfully' to indicate that the model save was successful.
+
+### Bug Fixed
+
+-   Fixed a bug in the calculation of the altitude difference between the in situ stations and the grid, which was incorrectly performed using terra::extract(). This method assumed that the altitude of each insitu station was the altitude of each grid. Now, the difference is correctly calculated between the altitude of each station and all grid cells.
+
+-   Fixed a bug in the examples and in the documentation where the “Rain_threshold” parameter was passed as a single value and not as a list, as required by RFplus.
+
 # Version 1.4-0 (CRAN)
 
 #### ***Expected Release Date:*** 2025-03-15
@@ -5,17 +21,10 @@
 ### New Features
 
 -   The “Description” file has been updated to include all authors who have contributed to the RFplus package.
-
-<!-- -->
-
 -   We have made changes to the documentation to ensure better understanding.
-
 -   The evaluation_metrics function has been updated to allow classification of precipitation data into various intensity categories (e.g., light, moderate, heavy rain). It now accepts a list of custom thresholds to define these categories and calculates specific performance metrics for each, such as Critical Success Index (CSI), Probability of Detection (POD) and False Alarm Rate (FAR). This facilitates a more detailed evaluation of model performance at different rainfall intensities. In addition, the function retains traditional fitting metrics, such as RMSE and KGE, providing a complete evaluation tailored to scenarios with rainfall variability.
-
 -   Implemented a validation check to identify dates with completely missing data in BD_insitu. This feature allows users to detect and visualize dates where all recorded values are NA, preventing the model from processing them. If such dates are found, the system will trigger a warning, ensuring data completeness before running the Random Forest predictions.
-
 -   Two additional categorical metrics have been added when “training” has a value other than 1. The added metrics are: success ratio (SR), Hit BIAS (HB).
-
 -   An update of the vignettes was made to address the improvements introduced in the previous versions.
 
 # Version 1.3-0 (CRAN)
