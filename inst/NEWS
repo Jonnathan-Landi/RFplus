@@ -1,4 +1,17 @@
 ================================================================================
+                               Version 1.5-2 (CRAN)
+================================================================================
+# Expected Release Date: 2025-04-01
+
+### New Features
+-   We update the “exdata” data to adapt it to the new RFplus changes.
+-   We have optimized the core of the RFplus algorithm to reduce the computation time.
+-   When the parameter 'save_model' is set to TRUE the message 'Saving model. Please wait'. To improve readability we have modified this message to: 'Model saved successfully' to indicate that the model save was successful.
+
+### Bug Fixed
+-   Fixed a bug in the calculation of the altitude difference between the in situ stations and the grid, which was incorrectly performed using terra::extract(). This method assumed that the altitude of each insitu station was the altitude of each grid. Now, the difference is correctly calculated between the altitude of each station and all grid cells.
+-   Fixed a bug in the examples and in the documentation where the “Rain_threshold” parameter was passed as a single value and not as a list, as required by RFplus.
+================================================================================
                                Version 1.4-0 (CRAN)
 ================================================================================
 # Expected Release Date: 2025-03-15
