@@ -1,8 +1,8 @@
 Package: RFplus
 Type: Package
 Title: Machine Learning for Merging Satellite and Ground Precipitation Data
-Version: 1.5-2
-Date: 2025-03-15
+Version: 1.5-4
+Date: 2025-03-31
 Encoding: UTF-8
 Authors@R:c(person("Jonnathan Augusto", "Landi Bermeo", email = "jonnathan.landi@outlook.com",
                   role = c("aut", "cre", "cph"), comment = c(ORCID = "0009-0003-3162-6647")),

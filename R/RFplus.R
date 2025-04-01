@@ -258,7 +258,8 @@ RFplus.data.table <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NUL
       #                       metrics of goodness of fit                           #
       ##############################################################################
       gof = data.table(
-        CC = round(hydroGOF::rPearson(data$Sim, data$Obs, na.rm = T), 3),
+        MAE = round(hydroGOF::mae(data$Sim, data$Obs, na.rm = T), 3),
+        CC = round(hydroGOF::rSpearman(data$Sim, data$Obs, na.rm = T), 3),
         RMSE = round(hydroGOF::rmse(data$Sim, data$Obs, na.rm = T), 3),
         KGE = round(hydroGOF::KGE(data$Sim, data$Obs, na.rm = T), 3),
         NSE = round(hydroGOF::NSE(data$Sim, data$Obs, na.rm = T), 3),
@@ -289,6 +290,7 @@ RFplus.data.table <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NUL
         hits <- filtered_data[observed == category & estimated == category, .N]
         misses <- filtered_data[observed == category & estimated != category, .N]
         false_alarms <- filtered_data[estimated == category & observed != category, .N]
+        correct_negatives <- dt[observed != category & estimated != category, .N]
 
         # Calculate indices, handling zero denominators
         POD <- ifelse((hits + misses) > 0, hits / (hits + misses), NA) # Probability of Detection
@@ -296,6 +298,14 @@ RFplus.data.table <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NUL
         CSI <- ifelse((hits + misses + false_alarms) > 0, hits / (hits + misses + false_alarms), NA) #Critical Success Index
         HB <- ifelse((hits + misses) > 0, (hits + false_alarms) / (hits + misses), NA) # Hit BIAS
         FAR <- ifelse((hits + false_alarms) > 0, false_alarms / (hits + false_alarms), NA) # False Alarm Rate
+        HK <- POD - (false_alarms / (false_alarms + correct_negatives)) # Hanssen-Kuipers Discriminant
+        HSS <- ifelse((hits + misses)*(misses + correct_negatives) +
+                        (hits + false_alarms)*(false_alarms + correct_negatives) != 0, (2 * (hits * correct_negatives - misses * false_alarms)) / (hits + misses)*(misses + correct_negatives) +
+                        (hits + false_alarms)*(false_alarms + correct_negatives), NA) # Heidke Skill Score
+        a_random <- ( (hits + false_alarms) * (hits + misses) ) /
+          (hits + misses + false_alarms + correct_negatives)
+        ETS <- ifelse(hits + misses + false_alarms - a_random != 0, hits - a_random /
+                        hits + misses + false_alarms - a_random, NA) # Equitable Threat Score
 
         # Return results as data.table
         return(data.table(
@@ -304,7 +314,10 @@ RFplus.data.table <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NUL
           SR = SR,
           CSI = CSI,
           HB = HB,
-          FAR = FAR
+          FAR = FAR,
+          HK = HK,
+          HSS = HSS,
+          ETS = ETS
         ))
       }
 
@@ -346,9 +359,7 @@ RFplus.data.table <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NUL
   #                         Prepare data for training                          #
   ##############################################################################
   # Layer to sample
-  Sample_lyrs <- DEM[[1]]
-  layer_0 = Covariates$DEM[[1]] * 0 # Layer when there is no precipitation.
-
+  Sample_lyrs <- DEM[[1]] * 0
   # Data for training
   training_data <- melt(
     train_data,
@@ -369,18 +380,12 @@ RFplus.data.table <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NUL
 
   # Calculate the Distance Euclidean
   distance_ED <- setNames(lapply(1:nrow(Points_VectTrain), function(i) {
-    terra::distance(Sample_lyrs, Points_VectTrain[i, ], rasterize = FALSE)
+    terra::distance(DEM[[1]], Points_VectTrain[i, ], rasterize = FALSE)
   }), Points_VectTrain$Cod)
 
-  # Calculate altitude difference
-  difference_altitude <- setNames(lapply(1:nrow(Points_VectTrain), function(i) {
-    Covariates$DEM[[1]] - terra::extract(Covariates$DEM[[1]], Points_VectTrain[i, ])[, 2]
-  }), Points_VectTrain$Cod)
-
-  # Calculate the difference in altitude
   difference_altitude <- setNames(lapply(1:nrow(Points_VectTrain), function(i) {
     z_station = Points_VectTrain$Z[i]
-    diff_alt = Sample_lyrs - z_station
+    diff_alt = DEM[[1]] - z_station
     return(diff_alt)
   }), Points_VectTrain$Cod)
   ##############################################################################
@@ -391,81 +396,73 @@ RFplus.data.table <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NUL
 
   # Model of the Random Forest for the progressive correction 1 y 2 ------------
   RF_Modelplus = function(day_COV, fecha) {
-
-    for (i in seq_along(day_COV)) {
-      names(day_COV)[i] <- names(day_COV[[i]])
-    }
-
+    names(day_COV) = sapply(day_COV, names)
     data_obs <- training_data[Date == as.Date(fecha), ]
 
-    points_EstTrain = merge(
+    if (data_obs[, sum(var, na.rm = TRUE)] == 0) return(Sample_lyrs)
+
+    points_EstTrain <- merge(
       data_obs[, .(ID, Cod)],
-      Points_Train[, .(Cod, X, Y)],
+      Points_Train[, .(Cod, X, Y, Z)],
       by = "Cod"
-    )[order(ID)]
+    )[order(ID)] |>
+      terra::vect(geom = c("X", "Y"), crs = crs(Sample_lyrs))
 
-    points_EstTrain <- terra::vect(points_EstTrain, geom = c("X", "Y"), crs = crs(Sample_lyrs))
+    add_rasters <- function(lyr, pattern) {
+      r = terra::rast(get(lyr)[points_EstTrain$Cod])
+      names(r) = paste0(pattern, "_", seq_along(points_EstTrain$Cod))
+      r
+    }
 
-    # Covariates extras
-    day_COV$dist_ED <- terra::rast(distance_ED[points_EstTrain$Cod])
-    names(day_COV$dist_ED) = paste("dist_ED_", seq_along(points_EstTrain$Cod), sep = "")
+    day_COV$dist_ED <- add_rasters("distance_ED", "dist_ED")
+    day_COV$diff_alt <- add_rasters("difference_altitude", "diff_alt")
 
-    day_COV$diff_alt <- terra::rast(difference_altitude[points_EstTrain$Cod])
-    names(day_COV$diff_alt) = paste("diff_alt_", seq_along(points_EstTrain$Cod), sep = "")
+    data_cov = lapply(day_COV, terra::extract, y = points_EstTrain) |>
+      Reduce(\(x, y) merge(x, y, by = "ID", all = TRUE), x = _) |>
+      (\(d) {
+        setDT(d)
+        d[, DEM := points_EstTrain$Z[match(ID, points_EstTrain$ID)]]
+        d
+      })()
 
-    #                   Training the model Random Forest (1)                   #
-    data_cov <- Reduce(function(x, y) merge(x, y, by = "ID", all = TRUE),
-                       lapply(day_COV, terra::extract, y = points_EstTrain))
-
-    dt.train <- merge(
-      data_obs[, .(ID, Date, var)],
+    dt.train = merge(
+      data_obs[, .(ID, var)],
       data_cov,
       by = "ID"
     )
 
-    dt.train <- dt.train[, setdiff(names(dt.train), "Date"), with = FALSE]
+    cov_Sat <- terra::rast(day_COV)
+    features <- setdiff(names(dt.train), "ID")
 
-    # If the sum of var is 0, I assume that there is no precipitation in the whole basin.
-    if (sum(dt.train$var, na.rm = TRUE) == 0) {
-      Ensamble <- layer_0 # No precipitation
-    } else {
-      set.seed(seed)
-      Model_P1 <- suppressWarnings(
-        randomForest::randomForest(
-          formula = var ~ .,
-          data = dt.train[, setdiff(names(dt.train), "ID"), with = FALSE],
-          ntree = ntree,
-          na.action = stats::na.omit
-        )
-      )
+    set.seed(seed)
+    Model_P1 <- randomForest::randomForest(
+      var ~ .,
+      data = dt.train[, ..features],
+      ntree = ntree,
+      na.action = na.omit
+    ) |>
+      suppressWarnings()
 
-      #                 Training the model Random Forest (2)                   #
-      # Prediction of the Model 1
-      val_P1 <- dt.train[, .(ID, Obs = var, sim = predict(Model_P1, .SD, na.rm = TRUE)), .SDcols = !"ID"]
-      # val_p3 <- dt.train[, .(ID, Obs = var, sim = predict(Model_P1, .SD, na.rm = TRUE)), .SDcols = !"ID"]
-      val_P1[, residuals := Obs - sim]
+    val_RF <- dt.train[, .(ID, Obs = var, sim = predict(Model_P1, .SD, na.rm = TRUE)), .SDcols = !"ID"]
+    val_RF[, residuals := Obs - sim]
 
-      dt.train_resi <- data.table(
-        residuals = val_P1$residuals,
-        dt.train[, setdiff(names(dt.train), c("ID", "var")), with = FALSE]
-      )
+    # Model post-correction
+    dt.train_resi <- data.table(
+      residuals = val_RF$residuals,
+      dt.train[, setdiff(names(dt.train), c("ID", "var")), with = FALSE]
+    )
 
-      # Train Model 2
-      Model_P2 <- suppressWarnings(randomForest::randomForest(
-        formula = residuals ~ .,
-        data = dt.train_resi,
-        ntree = ntree,
-        na.action = stats::na.omit
-      )
-      )
-      # Create the corrected model 1
-      cov_Sat <- terra::rast(day_COV)
-      Ensamble <- predict(cov_Sat, Model_P1, na.rm = TRUE, fun = predict) +
-        predict(cov_Sat, Model_P2, na.rm = TRUE, fun = predict)
-      # Extra operations in case they have been established
-      if (!is.null(n_round)) Ensamble <- terra::app(Ensamble, function(x) round(x, n_round))
-      if (wet.day != FALSE) Ensamble <- terra::app(Ensamble, function(x) ifelse(x < wet.day, 0, x))
-    } # End of the if statement
+    set.seed(seed)
+    Model_P2 <- suppressWarnings(randomForest::randomForest(
+      formula = residuals ~ .,
+      data = dt.train_resi,
+      ntree = ntree,
+      na.action = stats::na.omit
+    )
+    )
+    Ensamble <- predict(cov_Sat, Model_P1, na.rm = TRUE, fun = predict) +
+      predict(cov_Sat, Model_P2, na.rm = TRUE, fun = predict)
+
     return(Ensamble)
   }
 
@@ -478,8 +475,6 @@ RFplus.data.table <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NUL
   })
 
   Ensamble <- terra::rast(raster_Model)
-  if (!is.null(n_round)) Ensamble <- terra::app(Ensamble, \(x) round(x, n_round))
-
   # Model of the QM or QDM correction ------------------------------------------
   if (method == "none") {
     message("Analysis completed, QUANT or RQUANT correction phase not applied.")

@@ -4,14 +4,23 @@
 
 ### New Features
 
+-   We have added three new categorical metrics: Heidke Skill Score (HSS); Hanssen-Kuipers Discriminant (HK); Equal Threat Score (ETS) or Gilbert Skill Score.
+
+-   Aggregate metrics Mean Absolute Error (MAE) within metrics of goodness of fit.
+
+-   Since rainfall has a non-parametric behavior, we have modified the correlation coefficient from Pearson to Spearman. Now, 'cc' represents the Spearman correlation coefficient.
+
 -   We update the “exdata” data to adapt it to the new RFplus changes.
+
 -   We have optimized the core of the RFplus algorithm to reduce the computation time.
+
 -   When the parameter 'save_model' is set to TRUE the message 'Saving model. Please wait'. To improve readability we have modified this message to: 'Model saved successfully' to indicate that the model save was successful.
 
 ### Bug Fixed
 
+-   Fixed a bug in the altitude difference calculation, which instead of calculating altitude differences returned a fixed value.
+-   An error has been corrected in the learning module where, instead of extracting the altitude of the station, the altitude of the centroid of the pixel in which the insitu station was located was extracted.
 -   Fixed a bug in the calculation of the altitude difference between the in situ stations and the grid, which was incorrectly performed using terra::extract(). This method assumed that the altitude of each insitu station was the altitude of each grid. Now, the difference is correctly calculated between the altitude of each station and all grid cells.
-
 -   Fixed a bug in the examples and in the documentation where the “Rain_threshold” parameter was passed as a single value and not as a list, as required by RFplus.
 
 # Version 1.4-0 (CRAN)
