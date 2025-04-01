@@ -3,7 +3,7 @@ title: "RFplus: A Novel Machine Learning Approach for Merging Multi-Satellite Pr
 author: "Jonnathan Augusto Landi Bermeo"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Progressive Bias Correction of Satellite Environmental Data using RFplus}
+  %\VignetteIndexEntry{Machine learning algorithm for fusing ground and satellite precipitation data}
   %\VignetteEngine{knitr::rmarkdown}
 ---
 

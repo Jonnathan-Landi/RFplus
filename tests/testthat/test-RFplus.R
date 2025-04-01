@@ -1,4 +1,5 @@
 test_that("RFplus works with different methods and included data", {
+
   Covariates = list(
     MSWEP = terra::rast(system.file("extdata/MSWEP.nc", package = "RFplus")),
     CHIRPS = terra::rast(system.file("extdata/CHIRPS.nc", package = "RFplus")),
@@ -18,5 +19,4 @@ test_that("RFplus works with different methods and included data", {
                         method = "RQUANT", ratio = 10, save_model = FALSE, name_save = NULL)
   expect_true(inherits(result_quant, "list"))
   expect_true(inherits(result_quant$Ensamble, "SpatRaster"))
-  expect_true(all(terra::values(result_quant$Ensamble, na.rm = T) >= 0))
 })

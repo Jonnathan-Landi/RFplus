@@ -321,20 +321,19 @@ RFplus.data.table <- function(BD_Insitu, Cords_Insitu, Covariates, n_round = NUL
         ))
       }
 
-      dt <- copy(data)
-      setkey(dt, Date)
+      setkey(data, Date)
       threshold_info <- create_threshold_categories(rain_thresholds)
 
       # Classify observed and estimated precipitation
-      dt[, observed := ifelse(is.na(Obs), NA_character_,
+      data[, observed := ifelse(is.na(Obs), NA_character_,
                               as.character(cut(Obs, breaks = threshold_info$thresholds,
                                                labels = threshold_info$categories, right = FALSE)))]
-      dt[, estimated := ifelse(is.na(Sim), NA_character_,
+      data[, estimated := ifelse(is.na(Sim), NA_character_,
                                as.character(cut(Sim, breaks = threshold_info$thresholds,
                                                 labels = threshold_info$categories, right = FALSE)))]
 
       # Create simplified data.table with just the categories
-      category_data <- dt[, .(observed, estimated)]
+      category_data <- data[, .(observed, estimated)]
 
       # Calculate metrics for each category and combine results
       categorical_metrics <- rbindlist(lapply(threshold_info$categories, function(cat) {
